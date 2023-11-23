@@ -28,13 +28,12 @@ class GeoFeatureGenerator(FeaturetoolsBasedFeatureGenerator):
             self.feature_in_out_map[str(self.feature_in)] = (out_schema.name, self.op_list[0])
             ret_pa_schema.append(out_schema)
 
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = self.feature_in_out_map
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'haversine', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = self.feature_in_out_map
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'haversine', config = config)
+        return pipeline, cur_idx, cur_idx
 
 
 class Point:
@@ -78,17 +77,16 @@ class CoordinatesInferFeatureGenerator(super_class):
         for p in self.points:
             out_schema = SeriesSchema(p.get_feature_name(), p.get_feature_type()) 
             ret_pa_schema.append(out_schema)
-        if is_useful:
-            cur_idx = max_idx
-            child = children[0]
-            for p in self.points:
-                cur_idx = cur_idx + 1
-                config = p.get_config()
-                pipeline[cur_idx] = Operation(cur_idx, [child], ret_pa_schema, op = 'tuple', config = config)
-                child = cur_idx
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx
+        child = children[0]
+        for p in self.points:
+            cur_idx = cur_idx + 1
+            config = p.get_config()
+            pipeline[cur_idx] = Operation(cur_idx, [child], ret_pa_schema, op = 'tuple', config = config)
+            child = cur_idx
+        return pipeline, cur_idx, cur_idx
     
     def is_coor_related_name_and_set(self, f_name):
             coor_related_names = ["longitude", "latitude", "coordinates", "point", "latlong", "longlat"]

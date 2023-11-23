@@ -6,8 +6,7 @@ from pyrecdp.primitives.operations import TextFix
 
 def text_fixer_spark(spark_df, text_type='html'):
     op = TextFix(text_type=text_type)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def text_fixer(data_dir, data_file_type, out_dir, text_type='html'):

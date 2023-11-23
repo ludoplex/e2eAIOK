@@ -12,7 +12,9 @@ except:
 
 if not os.environ.get('JAVA_HOME', None): 
     os.environ['JAVA_HOME'] = "/usr/lib/jvm/java-8-openjdk-amd64/"
-    print(f"JAVA_HOME is not set, use default value of /usr/lib/jvm/java-8-openjdk-amd64/")
+    print(
+        "JAVA_HOME is not set, use default value of /usr/lib/jvm/java-8-openjdk-amd64/"
+    )
 os.environ["PYSPARK_PYTHON"]=sys.executable
 os.environ["PYSPARK_DRIVER_PYTHON"]=sys.executable
 os.environ["PYSPARK_WORKER_PYTHON"]=sys.executable

@@ -100,16 +100,11 @@ def tokenize_batch(tokenizer_name, batch, data_field, model_max_length, use_fast
         sample_id = encoded['input_ids'] + eos_id
         ids.append(sample_id)
 
-    tokenized_batch = pd.DataFrame({"tokens": ids})
-
-    return tokenized_batch
+    return pd.DataFrame({"tokens": ids})
 
 
 def __best_fitting_dtype(vocab_size=None):
-    if vocab_size is not None and vocab_size < 65500:
-        return np.uint16
-    else:
-        return np.int32
+    return np.uint16 if vocab_size is not None and vocab_size < 65500 else np.int32
 
 
 def save_megatron(output_dir, task_id, tokenized_batch, vocab_size):

@@ -17,15 +17,15 @@ class HPOExperimentConfig(BaseModel):
 
     @staticmethod
     def load_from_yaml(config_file: str, section: Optional[str] = "hpo"):
-        if os.path.isfile(config_file):
-            with open(config_file, "r") as template_file:
-                config = yaml.safe_load(template_file)
-            if section in config:
-                return HPOExperimentConfig(**config[section])
-            else:
-                return HPOExperimentConfig(**config)
-        else:
+        if not os.path.isfile(config_file):
             raise ValueError(f"HPO Experiment config file {config_file} does not exists!")
+        with open(config_file, "r") as template_file:
+            config = yaml.safe_load(template_file)
+        return (
+            HPOExperimentConfig(**config[section])
+            if section in config
+            else HPOExperimentConfig(**config)
+        )
 
 
 class PipelineConfig(BaseModel):
@@ -45,20 +45,19 @@ class PipelineConfig(BaseModel):
 
     @staticmethod
     def load_from_template(config_file: str, data: Optional[dict] = None):
-        if os.path.isfile(config_file):
-            if data is None:
-                data = {}
-            try:
-                from jinja2 import Template
-            except ImportError:
-                os.system("pip install Jinja2")
-            from jinja2 import Template
-            with open(config_file, "r") as template_file:
-                template = Template(template_file.read())
-            pipeline = yaml.safe_load(template.render(**data))
-            return PipelineConfig(**pipeline)
-        else:
+        if not os.path.isfile(config_file):
             raise ValueError(f"pipeline config file {config_file} does not exists!")
+        if data is None:
+            data = {}
+        try:
+            from jinja2 import Template
+        except ImportError:
+            os.system("pip install Jinja2")
+        from jinja2 import Template
+        with open(config_file, "r") as template_file:
+            template = Template(template_file.read())
+        pipeline = yaml.safe_load(template.render(**data))
+        return PipelineConfig(**pipeline)
 
 
 @dataclass
@@ -78,7 +77,7 @@ class HpoExperiment(ABC):
 
     @staticmethod
     def create(hpo_config: HPOExperimentConfig):
-        if hpo_config.engine is None or "sigopt" == hpo_config.engine:
+        if hpo_config.engine is None or hpo_config.engine == "sigopt":
             return SigoptExperiment(hpo_config)
         else:
             raise NotImplementedError(f"hpo engine {hpo_config.engine} is not supported in LLM Text Pipeline HPO yet!")
@@ -164,14 +163,13 @@ class TextPipelineHPO:
         self._output_pipeline_file = output_pipeline_file
 
     def _create_hpo_experiment(self) -> HpoExperiment:
-        if self._input_pipeline_file == self._input_hpo_file:
-            pipeline_config = PipelineConfig.load_from_template(self._input_pipeline_file)
-            if pipeline_config.hpo is None:
-                raise ValueError(f"hpo config is not define in file {self._input_pipeline_file}")
-
-            return HpoExperiment.create(pipeline_config.hpo)
-        else:
+        if self._input_pipeline_file != self._input_hpo_file:
             return HpoExperiment.load_from_yaml(self._input_hpo_file)
+        pipeline_config = PipelineConfig.load_from_template(self._input_pipeline_file)
+        if pipeline_config.hpo is None:
+            raise ValueError(f"hpo config is not define in file {self._input_pipeline_file}")
+
+        return HpoExperiment.create(pipeline_config.hpo)
 
     def _evaluate_text_pipeline(self, hpo_expr_run: HpoExperimentRun):
         def create_text_pipeline():

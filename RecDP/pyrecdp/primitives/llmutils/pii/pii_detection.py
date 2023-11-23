@@ -17,7 +17,7 @@ def scan_pii_text(text: str, pipeline: Pipeline, entity_types: List[PIIEntityTyp
         entity_types = PIIEntityType.default()
 
     if PIIEntityType.IP_ADDRESS in entity_types:
-        result = result + detect_ip(text)
+        result += detect_ip(text)
     # use a regex to detect emails
     if PIIEntityType.EMAIL in entity_types:
         result = result + detect_email(text)

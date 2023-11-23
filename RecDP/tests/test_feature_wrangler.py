@@ -24,7 +24,7 @@ class TestFeatureWranglerPandasBased(unittest.TestCase):
         display(ret_df)
     
     def test_nyc_taxi_perf(self):
-        train_data = pd.read_csv(f"/home/vmagent/app/dataset/nyc_taxi/train.csv")
+        train_data = pd.read_csv("/home/vmagent/app/dataset/nyc_taxi/train.csv")
         with Timer("NYC taxi performance test"):
             pipeline = FeatureWrangler(dataset=train_data, label="fare_amount")
             ret_df = pipeline.fit_transform(engine_type = 'pandas')
@@ -51,7 +51,9 @@ class TestFeatureWranglerPandasBased(unittest.TestCase):
         display(ret_df)
     
     def test_frauddetect_perf(self):
-        train_data = pd.read_csv(f"/home/vmagent/app/dataset/fraud_detect/card_transaction.v1.csv")
+        train_data = pd.read_csv(
+            "/home/vmagent/app/dataset/fraud_detect/card_transaction.v1.csv"
+        )
         with Timer("Fraud detect performance test"):
             pipeline = FeatureWrangler(dataset=train_data, label="Is Fraud?")
             ret_df = pipeline.fit_transform(engine_type = 'pandas')
@@ -66,7 +68,9 @@ class TestFeatureWranglerPandasBased(unittest.TestCase):
         display(ret_df)
     
     def test_recsys2023_perf(self):
-        train_data = pd.read_parquet(f"/home/vmagent/app/dataset/recsys2023/recsys2023_train.parquet")
+        train_data = pd.read_parquet(
+            "/home/vmagent/app/dataset/recsys2023/recsys2023_train.parquet"
+        )
         with Timer("Recsys2023 performance test"):
             pipeline = FeatureWrangler(dataset=train_data, label="is_installed", time_series = 'f_1')
             ret_df = pipeline.fit_transform(engine_type = 'pandas')
@@ -82,7 +86,7 @@ class TestFeatureWranglerSparkBased(unittest.TestCase):
         display(ret_df)
     
     def test_nyc_taxi_perf(self):
-        train_data = pd.read_csv(f"/home/vmagent/app/dataset/nyc_taxi/train.csv")
+        train_data = pd.read_csv("/home/vmagent/app/dataset/nyc_taxi/train.csv")
         with Timer("NYC taxi performance test"):
             pipeline = FeatureWrangler(dataset=train_data, label="fare_amount")
             ret_df = pipeline.fit_transform(engine_type = 'spark')
@@ -109,7 +113,9 @@ class TestFeatureWranglerSparkBased(unittest.TestCase):
         display(ret_df)
 
     def test_frauddetect_perf(self):
-        train_data = pd.read_csv(f"/home/vmagent/app/dataset/fraud_detect/card_transaction.v1.csv")
+        train_data = pd.read_csv(
+            "/home/vmagent/app/dataset/fraud_detect/card_transaction.v1.csv"
+        )
         with Timer("Fraud detect performance test"):
             pipeline = FeatureWrangler(dataset=train_data, label="Is Fraud?")
             ret_df = pipeline.fit_transform(engine_type = 'spark')
@@ -124,7 +130,9 @@ class TestFeatureWranglerSparkBased(unittest.TestCase):
         display(ret_df)
     
     def test_recsys2023_perf(self):
-        train_data = pd.read_parquet(f"/home/vmagent/app/dataset/recsys2023/recsys2023_train.parquet")
+        train_data = pd.read_parquet(
+            "/home/vmagent/app/dataset/recsys2023/recsys2023_train.parquet"
+        )
         with Timer("Recsys2023 performance test"):
             pipeline = FeatureWrangler(dataset=train_data, label="is_installed", time_series = 'f_1')
             ret_df = pipeline.fit_transform(engine_type = 'spark')

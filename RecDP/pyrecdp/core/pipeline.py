@@ -77,17 +77,15 @@ class BasePipeline:
         executable_pipeline = DiGraph()
         executable_sequence = []
         for idx in node_chain:
-            actual_op = self.pipeline[idx].instantiate()
-            if actual_op:
+            if actual_op := self.pipeline[idx].instantiate():
                 executable_pipeline[idx] = actual_op
                 executable_sequence.append(executable_pipeline[idx])
         return executable_pipeline, executable_sequence
 
     def find_operation(self, target_list):
-        for idx, op in self.pipeline.items():
-            if op.op in target_list:
-                return op
-        return None
+        return next(
+            (op for idx, op in self.pipeline.items() if op.op in target_list), None
+        )
 
     def add_operation(self, config):
         pass
@@ -95,23 +93,26 @@ class BasePipeline:
     def delete_operation(self, id):
         cur_idx = id
         pipeline_chain = self.to_chain()
-        children = self.pipeline[cur_idx].children    
+        children = self.pipeline[cur_idx].children
         # we need to find nexts
         for to_replace_child in children:
-            next = []
-            for idx in pipeline_chain:
-                if self.pipeline[idx].children and to_replace_child in self.pipeline[idx].children:
-                    next.append(idx)
+            next = [
+                idx
+                for idx in pipeline_chain
+                if self.pipeline[idx].children
+                and to_replace_child in self.pipeline[idx].children
+            ]
             if len(next) == 1:
                 self.pipeline[next[0]].children = children
-            else:            
+            else:    
                 for idx in next:
                     # replace next's children with new added operator
                     children_in_next = self.pipeline[idx].children
-                    found = {}
-                    for id, child in enumerate(children_in_next):
-                        if child == cur_idx:
-                            found[id] = to_replace_child
+                    found = {
+                        id: to_replace_child
+                        for id, child in enumerate(children_in_next)
+                        if child == cur_idx
+                    }
                     for k, v in found.items():
                         self.pipeline[idx].children[k] = v
         if hasattr(self, 'transformed_end_idx'):

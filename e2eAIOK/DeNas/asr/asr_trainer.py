@@ -48,13 +48,11 @@ class ASRTrainer(TorchTrainer):
             self.train_dataloader.sampler.set_epoch(epoch)
         self.model.train()
 
-        step = 0
         nonfinite_count = 0
         total_step = len(self.train_dataloader)
         avg_train_loss = 0.0
         epoch_start_time = time.time()
-        for batch in self.train_dataloader:
-            step += 1
+        for step, batch in enumerate(self.train_dataloader, start=1):
             step_start_time = time.time()
             should_step = step % self.cfg["grad_accumulation_factor"] == 0
             wavs, wav_lens = batch.sig

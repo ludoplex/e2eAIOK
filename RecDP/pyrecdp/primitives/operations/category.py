@@ -78,9 +78,7 @@ class GroupCategorifyOperation(BaseOperation):
         encoder = df_x.groupby(by = grouped_features, as_index = False)[k].count().drop(k, axis = 1)
         encoder[feature_out] = encoder.index
         save_encoder(encoder, dict_path)
-        #display(encoder)
-        ret = df_x.merge(encoder, on = grouped_features, how = 'left')[feature_out]
-        return ret
+        return df_x.merge(encoder, on = grouped_features, how = 'left')[feature_out]
 
     @classmethod
     def group_label_encode_transform(cls, item):

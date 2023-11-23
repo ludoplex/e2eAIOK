@@ -25,7 +25,6 @@ class ModelBuilderASRDeNas(ModelBuilderASR):
             self.cfg["mlp_ratio"] = mlp_ratio
             self.cfg["encoder_heads"] = encoder_heads
             self.cfg["d_model"] = d_model
-        modules = {}
         cnn = ConvolutionFrontEnd(
             input_shape = self.cfg["input_shape"],
             num_blocks = self.cfg["num_blocks"],
@@ -50,14 +49,14 @@ class ModelBuilderASRDeNas(ModelBuilderASR):
         ctc_lin = Linear(input_size=self.cfg["d_model"], n_neurons=self.cfg["output_neurons"])
         seq_lin = Linear(input_size=self.cfg["d_model"], n_neurons=self.cfg["output_neurons"])
         normalize = InputNormalization(norm_type="global", update_until_epoch=4)
-        modules["CNN"] = cnn
-        modules["Transformer"] = transformer
-        modules["seq_lin"] = seq_lin
-        modules["ctc_lin"] = ctc_lin
-        modules["normalize"] = normalize
-        model = torch.nn.ModuleDict(modules)
-        
-        return model
+        modules = {
+            "CNN": cnn,
+            "Transformer": transformer,
+            "seq_lin": seq_lin,
+            "ctc_lin": ctc_lin,
+            "normalize": normalize,
+        }
+        return torch.nn.ModuleDict(modules)
 
     def load_pretrained_model(self):
         if not os.path.exists(self.cfg['model']):

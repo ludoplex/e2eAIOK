@@ -17,13 +17,10 @@ class DocumentLoader(BaseLLMOperation):
                loader.
         """
         if loader is None or not isinstance(loader, str):
-            raise ValueError(f"loader must be provide!")
-
-        if not isinstance(loader, str):
-            raise ValueError(f"loader must be a class name of langchain document loader")
+            raise ValueError("loader must be provide!")
 
         if loader_args is not None and not isinstance(loader_args, dict):
-            raise ValueError(f"loader_args must be a dictionary arguments")
+            raise ValueError("loader_args must be a dictionary arguments")
 
         self.loader_args = loader_args or {}
         self.loader = loader
@@ -153,10 +150,14 @@ class Url_Loader(BaseLLMOperation):
         self.support_spark = True
 
     def load_html_data(self):
-        docs = []
-        for url in self.urls:
-            docs.append(load_html_to_md(page_url=url, target_tag=self.target_tag, target_attrs=self.target_attrs))
-        return docs
+        return [
+            load_html_to_md(
+                page_url=url,
+                target_tag=self.target_tag,
+                target_attrs=self.target_attrs,
+            )
+            for url in self.urls
+        ]
 
     def load_documents(self):
         return [{'text': doc.text, 'metadata': doc.metadata} for doc in self.load_html_data()]

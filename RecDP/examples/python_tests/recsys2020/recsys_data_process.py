@@ -166,11 +166,8 @@ def splitByDate(df, proc, train_output, test_output, numFolds=5):
     seconds_in_day = 3600 * 24
 
     print(
-        "min_timestamp is %s, max_timestamp is %s, 20 days max is %s" % (
-            datetime.datetime.fromtimestamp(min_timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-            datetime.datetime.fromtimestamp(max_timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-            datetime.datetime.fromtimestamp(min_timestamp + 20 * seconds_in_day).strftime('%Y-%m-%d %H:%M:%S')
-        ))
+        f"min_timestamp is {datetime.datetime.fromtimestamp(min_timestamp).strftime('%Y-%m-%d %H:%M:%S')}, max_timestamp is {datetime.datetime.fromtimestamp(max_timestamp).strftime('%Y-%m-%d %H:%M:%S')}, 20 days max is {datetime.datetime.fromtimestamp(min_timestamp + 20 * seconds_in_day).strftime('%Y-%m-%d %H:%M:%S')}"
+    )
 
     time_range_split = {
         'train': (min_timestamp, seconds_in_day * 18 + min_timestamp),
@@ -190,14 +187,14 @@ def splitByDate(df, proc, train_output, test_output, numFolds=5):
     train_df.write.format('parquet').mode('overwrite').save(proc.path_prefix + proc.current_path + train_output)
     t2 = timer()
     print("split to train took %.3f" % (t2 - t1))
-    
+
     t1 = timer()
     test_df = df.filter(
         (f.col('tweet_timestamp') >= f.lit(test_start)) & (f.col('tweet_timestamp') < f.lit(test_end)))
     test_df.write.format('parquet').mode('overwrite').save(proc.path_prefix + proc.current_path + test_output)
     t2 = timer()
     print("split to test took %.3f" % (t2 - t1))
-    
+
     return (proc.spark.read.parquet(proc.path_prefix + proc.current_path + train_output),
             proc.spark.read.parquet(proc.path_prefix + proc.current_path + test_output))
 
@@ -212,7 +209,7 @@ def categorifyFeatures(df, proc, output_name="train_with_categorified_features",
              {'src_cols': ['engaged_with_user_id_indicator', 'engaging_user_id_indicator'], 'col_name': 'user_id'}])
         op_tweet = GenerateDictionary(
             ['tweet_indicator'], doSplit=True, withCount=True, sep=' ')
-        
+
         proc.reset_ops([op_multiItems, op_singleItems, op_tweet])
         t1 = timer()
         dict_dfs = proc.generate_dicts(df)
@@ -222,8 +219,15 @@ def categorifyFeatures(df, proc, output_name="train_with_categorified_features",
         # or we can simply load from pre-gened
         dict_names = ['hashtags_indicator', 'language_indicator', 'present_domains_indicator',
                       'present_links_indicator', 'tweet_id_indicator', 'user_id_indicator', 'tweet_indicator']
-        dict_dfs = [{'col_name': name, 'dict': proc.spark.read.parquet(
-            "%s/%s/%s/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, name))} for name in dict_names]
+        dict_dfs = [
+            {
+                'col_name': name,
+                'dict': proc.spark.read.parquet(
+                    f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/{name}"
+                ),
+            }
+            for name in dict_names
+        ]
 
     # pre-defined dict
     # pre-define
@@ -257,20 +261,13 @@ def categorifyFeatures(df, proc, output_name="train_with_categorified_features",
         dict_df = i['dict']
         print("%s has numRows as %d" % (dict_name, dict_df.count()))
 
-    ###### 2. define operations and append them to data processor ######
-
-    # 1. define operations
-    # 1.1 filter on tweet dict
-    i = 0
-    for dict_df in dict_dfs:
+    for i, dict_df in enumerate(dict_dfs):
         if dict_df['col_name'] == 'tweet':
             tweet_dict_df = dict_df['dict']
             df_cnt = tweet_dict_df.count()
             freqRange = [2, df_cnt * 0.9]
             tweet_dict_df = tweet_dict_df.filter((f.col('count') <= f.lit(freqRange[1])) & (f.col('count') >= f.lit(freqRange[0])))
             dict_dfs[i]['dict'] = tweet_dict_df
-        i += 1      
-
     # 1.3 categorify
     # since language dict is small, we may use udf to make partition more even
     op_categorify_1 = Categorify(
@@ -295,14 +292,14 @@ def categorifyFeatures(df, proc, output_name="train_with_categorified_features",
         df = df.sample(sampleRatio)
     df = proc.transform(df, name=output_name)
     t2 = timer()
-    print("categorify took %.3f" % (t2 - t1))    
+    print("categorify took %.3f" % (t2 - t1))
     return df, dict_dfs
 
 
 def encodingFeatures(df, proc, output_name, gen_dict, sampleRatio=1):   
     targets = ['reply_timestamp', 'retweet_timestamp', 'retweet_with_comment_timestamp', 'like_timestamp']
     y_mean_all = []
-    
+
     t1 = timer()
     if gen_dict:
         for tgt in targets:
@@ -312,9 +309,11 @@ def encodingFeatures(df, proc, output_name, gen_dict, sampleRatio=1):
         schema = t.StructType([t.StructField(tgt, t.FloatType(), True) for tgt in targets])
         y_mean_all_df = proc.spark.createDataFrame([tuple(y_mean_all)], schema)
         y_mean_all_df.write.format("parquet").mode("overwrite").save(
-            "%s/%s/%s/targets_mean" % (proc.path_prefix, proc.current_path, proc.dicts_path))
+            f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/targets_mean"
+        )
     y_mean_all_df = proc.spark.read.parquet(
-        "%s/%s/%s/targets_mean" % (proc.path_prefix, proc.current_path, proc.dicts_path))
+        f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/targets_mean"
+    )
 
     te_features = [
         'present_media',
@@ -334,7 +333,7 @@ def encodingFeatures(df, proc, output_name, gen_dict, sampleRatio=1):
         ['present_domains','present_media','tweet_type','language'],
         ['present_links','present_media','tweet_type','language'],
         ['hashtags','present_media','tweet_type','language']
-        
+
     ]
     ce_features = ['present_media', 'tweet_type', 'language', 'engaged_with_user_id', 'engaging_user_id']
     fe_features = ['present_media', 'tweet_type', 'language', 'engaged_with_user_id', 'engaging_user_id']
@@ -365,25 +364,34 @@ def encodingFeatures(df, proc, output_name, gen_dict, sampleRatio=1):
                     te_train_df, te_test_df = encoder.transform(df)
                     te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': te_train_df})
                     te_test_dfs.append({'col_name': c, 'dict': te_test_df})
-                    print(f"generating target encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
+                    print(
+                        "generating target encoding for %s upon %s took %.1f seconds"
+                        % (str(c), str(target_tmp), timer() - start)
+                    )
 
                 elif feature_type == 'CE':
-                    encoder = CountEncoder(proc, c, target_tmp, out_col_list, out_name)  
+                    encoder = CountEncoder(proc, c, target_tmp, out_col_list, out_name)
                     ce_train_df, ce_test_df = encoder.transform(df)
                     ce_train_dfs.append({'col_name': c if isinstance(c, list) else [c], 'dict': ce_train_df})
-                    ce_test_dfs.append({'col_name': c, 'dict': ce_test_df})  
-                    print(f"generating count encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
+                    ce_test_dfs.append({'col_name': c, 'dict': ce_test_df})
+                    print(
+                        "generating count encoding for %s upon %s took %.1f seconds"
+                        % (str(c), str(target_tmp), timer() - start)
+                    )
 
                 elif feature_type == 'FE':
                     # For frequency encoding, we don't need to merge with train data
-                    encoder = FrequencyEncoder(proc, c, target_tmp, out_col_list, out_name) 
+                    encoder = FrequencyEncoder(proc, c, target_tmp, out_col_list, out_name)
                     fe_train_df, fe_test_df = encoder.transform(df)
                     fe_train_dfs.append({'col_name': c if isinstance(c, list) else [c], 'dict': fe_train_df})
-                    print(f"generating frequency encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
+                    print(
+                        "generating frequency encoding for %s upon %s took %.1f seconds"
+                        % (str(c), str(target_tmp), timer() - start)
+                    )
 
             else:
-                te_train_path = "%s/%s/%s/train/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)
-                te_test_path = "%s/%s/%s/test/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name) 
+                te_train_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/train/{out_name}"
+                te_test_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/test/{out_name}"
                 if feature_type == 'TE':
                     te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': proc.spark.read.parquet(te_train_path)})
                     te_test_dfs.append({'col_name': c, 'dict': proc.spark.read.parquet(te_test_path)})
@@ -411,13 +419,12 @@ def encodingFeatures(df, proc, output_name, gen_dict, sampleRatio=1):
         df = proc.transform(df, name=_output_name)
         t2 = timer()
         print("encodingFeatures took %.3f" % (t2 - t1))
-    
+
     return (df, te_train_dfs, te_test_dfs, y_mean_all_df)
 
 def main():
     path_prefix = "hdfs://"
     current_path = "/recsys2020_example/"
-    original_folder = "/recsys2021_0608/"
     dicts_folder = "recsys_dicts/"
     recsysSchema = RecsysSchema()
 
@@ -440,7 +447,7 @@ def main():
     # 1.2 create RecDP DataProcessor
     proc = DataProcessor(spark, path_prefix,
                         current_path=current_path, dicts_path=dicts_folder, shuffle_disk_capacity="1200GB")
-    df = spark.read.parquet(path_prefix + original_folder)
+    df = spark.read.parquet(f"{path_prefix}/recsys2021_0608/")
     df = df.withColumnRenamed('enaging_user_following_count', 'engaging_user_following_count')
     df = df.withColumnRenamed('enaging_user_is_verified', 'engaging_user_is_verified')
 

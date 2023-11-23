@@ -26,10 +26,7 @@ class MaximumLineLengthFilter(BaseFilter):
             lines = text.splitlines()
             line_lengths = list(map(len, lines))
             max_line_length = max(line_lengths) if line_lengths else 0.0
-            if min_len <= max_line_length <= max_len:
-                return True
-            else:
-                return False
+            return min_len <= max_line_length <= max_len
 
         return compute
 

@@ -25,14 +25,13 @@ class Operation:
         return repr(self.dump())
 
     def dump(self):
-        dump_dict = {
+        return {
             # 'idx': self.idx,
             'children': self.children,
             # 'output': self.output,
             'op': self.op,
-            'config': dump_fix(self.config)
+            'config': dump_fix(self.config),
         }
-        return dump_dict
 
     def instantiate(self):
         if self.op in AUTOFEOPERATORS.modules:
@@ -50,8 +49,9 @@ class Operation:
 
     @staticmethod
     def load(idx, dump_dict):
-        obj = Operation(idx, dump_dict['children'], None, dump_dict['op'], dump_dict['config'])
-        return obj
+        return Operation(
+            idx, dump_dict['children'], None, dump_dict['op'], dump_dict['config']
+        )
 
 
 BASEOPERATORS = Registry('BaseOperation')
@@ -78,17 +78,13 @@ class BaseOperation:
 
     def execute_pd(self, pipeline, trans_type='fit_transform'):
         _proc = self.get_function_pd(trans_type)
-        if not self.op.children or len(self.op.children) == 0:
-            pass
-        else:
+        if self.op.children and len(self.op.children) != 0:
             child_output = pipeline[self.op.children[0]].cache
             self.cache = _proc(child_output)
 
     def execute_spark(self, pipeline, rdp, trans_type='fit_transform'):
         _convert = None
-        if not self.op.children or len(self.op.children) == 0:
-            pass
-        else:
+        if self.op.children and len(self.op.children) != 0:
             child_output = pipeline[self.op.children[0]].cache
             if isinstance(child_output, SparkDataFrame):
                 if self.support_spark_dataframe:
@@ -109,16 +105,18 @@ class BaseOperation:
                     _convert = RDDToDataFrameConverter().get_function(rdp)
                     _proc = self.get_function_pd(trans_type)
             elif isinstance(child_output, pd.DataFrame):
-                if self.fast_without_dpp:
+                if (
+                    self.fast_without_dpp
+                    or not self.support_spark_rdd
+                    and not self.support_spark_dataframe
+                ):
                     _proc = self.get_function_pd(trans_type)
                 elif self.support_spark_rdd:
                     _convert = DataFrameToRDDConverter().get_function(rdp)
                     _proc = self.get_function_spark_rdd(rdp, trans_type)
-                elif self.support_spark_dataframe:
+                else:
                     _convert = DataFrameToSparkDataFrameConverter().get_function(rdp)
                     _proc = self.get_function_spark(rdp, trans_type)
-                else:
-                    _proc = self.get_function_pd(trans_type)
             else:
                 raise ValueError(f"child cache is not recognized {child_output}")
 
@@ -165,8 +163,7 @@ class BaseLLMOperation(BaseOperation):
             self.cache = self.process_rayds(child_ds)
         else:
             children = self.op.children if self.op.children is not None else []
-            for op in children:
-                child_output.append(pipeline[op].cache)
+            child_output.extend(pipeline[op].cache for op in children)
             self.cache = self.process_rayds(*child_output)
         return self.cache
 
@@ -177,10 +174,11 @@ class BaseLLMOperation(BaseOperation):
             child_output.append(child_ds)
             skip_first = True
         children = self.op.children if self.op.children is not None else []
-        for idx, op in enumerate(children):
-            if idx == 0 and skip_first:
-                continue
-            child_output.append(pipeline[op].cache)
+        child_output.extend(
+            pipeline[op].cache
+            for idx, op in enumerate(children)
+            if idx != 0 or not skip_first
+        )
         print(self)
         self.cache = self.process_spark(rdp.spark, *child_output)
         return self.cache

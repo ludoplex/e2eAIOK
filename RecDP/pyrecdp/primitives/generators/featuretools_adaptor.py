@@ -25,9 +25,8 @@ class FeaturetoolsBasedFeatureGenerator(super_class):
                 out_schema = SeriesSchema(out_feat_name, out_feat_type)
                 ret_pa_schema.append(out_schema)
                 self.feature_in_out_map[in_feat_name].append((out_schema.name, op_clz))
-        if is_useful:
-            cur_idx = max_idx + 1
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = self.op_name, config = self.feature_in_out_map)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = self.op_name, config = self.feature_in_out_map)
+        return pipeline, cur_idx, cur_idx

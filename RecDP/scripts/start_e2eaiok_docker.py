@@ -35,10 +35,7 @@ def log_subprocess_output(pipe, logger, idx = ""):
 def get_install_cmd():
     import platform
     os = platform.linux_distribution()[0]
-    if 'debian' in os:
-        return "apt install -y "
-    else:
-        return "yum install -y "
+    return "apt install -y " if 'debian' in os else "yum install -y "
 
 def fix_cmdline(cmdline, workers, use_ssh = False):
     if not isinstance(cmdline, list):
@@ -108,7 +105,7 @@ def check_requirements(docker_name, workers, local, logger):
     cmdline = "sshpass -V"
     if not execute(cmdline, logger):
         # install sshpass
-        cmdline = get_install_cmd() + " sshpass"
+        cmdline = f"{get_install_cmd()} sshpass"
         if not execute(cmdline, logger):
             logger.error("Not detect sshpass and failed in installing, please fix manually")
             return False, None
@@ -119,6 +116,7 @@ def check_requirements(docker_name, workers, local, logger):
             if in_dickerhub_name.endswith(f"e2eaiok/{docker_name}"):
                 return True
         return False
+
     cmdline = f"docker search e2eaiok/{docker_name}"
     if execute_check(cmdline, is_regist_docker_exists, logger):
         logger.info(f"Docker Container {docker_name} exists, skip docker build")
@@ -140,21 +138,25 @@ def check_requirements(docker_name, workers, local, logger):
             import json
             info = json.loads(json_str[0])
             if 'HttpProxy' in info or 'HttpsProxy' in info:
-                if not 'NoProxy' in info and local in info['NoProxy']:
-                    logger.error(f"NoProxy is not added when Proxy is configured")
+                if 'NoProxy' not in info and local in info['NoProxy']:
+                    logger.error("NoProxy is not added when Proxy is configured")
                     return False
-                if not f"{local}:5000" in info['RegistryConfig']['IndexConfigs']:
+                if (
+                    f"{local}:5000"
+                    not in info['RegistryConfig']['IndexConfigs']
+                ):
                     logger.error(f"{local}:5000 is not added to insecure-registries")
                     for k, v in info['RegistryConfig']['IndexConfigs'].items():
                         logger.error(f"{k}: {v}")
                     return False
             return True
+
         cmdline = f"ssh {n} docker info --format " + "'{{json .}}'"
         if not execute_check(cmdline, check_docker_config, logger):
             logger.error(f"Please fix docker in {n}")
             logger.error("1. add {" + f"\"insecure-registries\" : [\"{local}:5000\"]"+"} to /etc/docker/daemon.json")
             logger.error(f"2. add to Environment=\"NO_PROXY={local}\" to /etc/systemd/system/docker.service.d/http-proxy.conf")
-            logger.error(f"systemctl daemon-reload & systemctl restart docker")
+            logger.error("systemctl daemon-reload & systemctl restart docker")
             return False, None
     return True, 'start_docker_registry'
 
@@ -224,9 +226,9 @@ def start_docker_registry(logger):
     def is_registry_exists(ret):
         return 'registry' in ret[-1]
 
-    cmdline = f"docker ps -f name=registry"
+    cmdline = "docker ps -f name=registry"
     if execute_check(cmdline, is_registry_exists, logger):
-        logger.info(f"Docker Container registry exists, skip start")
+        logger.info("Docker Container registry exists, skip start")
         return True
 
     cmdline = "docker run -d -e REGISTRY_HTTP_ADDR=0.0.0.0:5000 -p 5000:5000 --restart=always --name registry registry:2"
@@ -253,7 +255,7 @@ def run_docker(docker_name, docker_nickname, port, dataset_path, spark_shuffle_d
         if not execute_check(cmdline, is_docker_exists, logger):
             new_workers.append(worker)
     workers = new_workers
-    if len(workers) == 0:
+    if not workers:
         return True, port
 
     # run
@@ -283,7 +285,7 @@ def build_cluster(port, workers, logger):
 def build_jupyter(port, head, logger):
     cmdline = f"sshpass -p docker ssh {head} -p {port} /home/start_jupyter.sh"
     if not execute(cmdline, logger):
-        logger.error(f"initiate jupyter failed, please manually execute")
+        logger.error("initiate jupyter failed, please manually execute")
         logger.error(cmdline)
 
 
@@ -327,17 +329,17 @@ def main(input_args):
         r = start_docker_registry(logger)
         next_step = "build_docker_and_push"
         if r:
-            logger.info(f"Completed Start Docker Registry")
+            logger.info("Completed Start Docker Registry")
         else:
             logger.error(f"Failed in start docker registry, please check {input_args.log_path}")
             exit()
 
     # 1.2 build docker
-    if next_step == "build_docker_no_push" or next_step == "build_docker_and_push":
+    if next_step in ["build_docker_no_push", "build_docker_and_push"]:
         is_push = next_step == "build_docker_and_push"
         r, docker_name = build_docker(docker_name, docker_file, logger, input_args.proxy, local=hostname, is_push = is_push)
         if r:
-            logger.info(f"Completed Docker Building")
+            logger.info("Completed Docker Building")
         else:
             logger.error(f"Failed in building docker, please check {input_args.log_path}")
             exit()
@@ -360,13 +362,13 @@ def main(input_args):
     else:
         logger.error(f"Failed in passwdless, please check {input_args.log_path}")
         exit()
-    
+
     # 4. start jupyter env
     r = build_jupyter(port, input_args.workers[0], logger)
     if not r:
         logger.error(f"Failed to enable jupyter, please check {input_args.log_path}")
     if print_success:
-        logger.info(f"Docker Container is now running, you may access by")
+        logger.info("Docker Container is now running, you may access by")
         logger.info(f"{cmd}, access_code: docker")
         logger.info(f"we chose {hostname} as master, passwdless ssh is only enabled from {hostname} to others")
         

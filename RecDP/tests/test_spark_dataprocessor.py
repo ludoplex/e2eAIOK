@@ -17,7 +17,7 @@ from pathlib import Path
 class TestSparkDataProcessor(unittest.TestCase):
     def setUp(self):
         path_prefix = "file://"
-        self.path = path_prefix + f"{pathlib}/tests/data/part-00008-3f7afb26-5b6e-4f4a-8a44-f439ddc4319f-c000.snappy.parquet"
+        self.path = f"{path_prefix}{pathlib}/tests/data/part-00008-3f7afb26-5b6e-4f4a-8a44-f439ddc4319f-c000.snappy.parquet"
     
     def test_local(self):
         self.rdp = SparkDataProcessor()

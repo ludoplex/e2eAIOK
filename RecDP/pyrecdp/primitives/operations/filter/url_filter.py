@@ -51,10 +51,7 @@ def get_url_from_meta(x):
     import json
     try:
         meta_obj = json.loads(x)
-        if 'url' in meta_obj:
-            return meta_obj['url']
-        else:
-            return "Not Provided"
+        return meta_obj['url'] if 'url' in meta_obj else "Not Provided"
     except:
         return "Not Provided"
 
@@ -85,8 +82,7 @@ class URLFilter(BaseFilter):
             blacklist_df = load_blacklist_spark_df(spark)
             source_df = spark_df
             with_domain_df = source_df.withColumn('domain', get_domain_udf(get_url_from_meta_udf('meta')))
-            left_anti_df = with_domain_df.join(blacklist_df, on='domain', how='left_anti')
-            return left_anti_df
+            return with_domain_df.join(blacklist_df, on='domain', how='left_anti')
         else:
             raise NotImplementedError("We only support inplace modification for URLFilter.")
 
@@ -94,10 +90,8 @@ class URLFilter(BaseFilter):
         def compute(sample) -> bool:
             url = get_url_from_meta(sample)
             domain = get_domain(url)
-            if domain in self.blacklist:
-                return False
-            else:
-                return True
+            return domain not in self.blacklist
+
         return compute
 
 

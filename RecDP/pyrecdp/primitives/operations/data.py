@@ -16,10 +16,8 @@ class DataFrameOperation(BaseOperation):
     def get_function_pd(self, trans_type = 'fit_transform'):
         cache = self.cache.copy() if self.cache is not None else None
         def get_dataframe(df):
-            if df is not None:
-                return df
-            else:
-                return cache
+            return df if df is not None else cache
+
         return get_dataframe
 
 AUTOFEOPERATORS.register(DataFrameOperation, "DataFrame")

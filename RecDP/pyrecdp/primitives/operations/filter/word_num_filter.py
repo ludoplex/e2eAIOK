@@ -37,10 +37,7 @@ class WordNumFilter(BaseFilter):
 
             words = words_refinement(words, strip_chars=SPECIAL_CHARACTERS)
             num_words = len(words)
-            if min_num <= num_words <= max_num:
-                return True
-            else:
-                return False
+            return min_num <= num_words <= max_num
 
         return compute
 

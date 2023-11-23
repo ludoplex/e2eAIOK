@@ -31,10 +31,9 @@ class RenameFeatureGenerator(super_class):
                 pa_field.name = self.renamed[pa_field.name]
             ret_schema.append(pa_field)
 
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = self.renamed
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_schema, op = 'rename', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = self.renamed
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_schema, op = 'rename', config = config)
+        return pipeline, cur_idx, cur_idx

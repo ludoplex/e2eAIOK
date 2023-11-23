@@ -13,8 +13,7 @@ def toxicity_score_spark(spark_df, text_key='text', threshold=0, model_type="mul
     """
     from pyrecdp.primitives.operations import TextToxicity
     op = TextToxicity(text_key=text_key, threshold=threshold, model_type=model_type, huggingface_config_path=huggingface_config_path)
-    toxicity_df = op.process_spark(spark_df.sparkSession, spark_df)
-    return toxicity_df
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def toxicity_score(dataset_path,

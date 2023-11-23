@@ -39,10 +39,7 @@ def prepare_func_pii_removal(model_root_path=None, debug_mode=True, entity_types
         text, _ = redact_pii_text(sample, secrets, replacements)
         return text
 
-    if debug_mode:
-        return process_debug
-    else:
-        return process
+    return process_debug if debug_mode else process
 
 
 class PIIRemoval(BaseLLMOperation):
@@ -61,10 +58,7 @@ class PIIRemoval(BaseLLMOperation):
         self.entity_types = PIIEntityType.default() if entity_types is None else entity_types
 
     def process_rayds(self, ds: Dataset) -> Dataset:
-        if self.inplace:
-            new_name = self.text_key
-        else:
-            new_name = 'pii_clean_text'
+        new_name = self.text_key if self.inplace else 'pii_clean_text'
         if self.actual_func is None:
             self.actual_func = prepare_func_pii_removal(self.model_root_path, debug_mode=self.debug_mode,
                                                         entity_types=self.entity_types)
@@ -81,11 +75,7 @@ class PIIRemoval(BaseLLMOperation):
     def process_spark(self, spark, spark_df: DataFrame) -> DataFrame:
         import pyspark.sql.functions as F
         from pyspark.sql import types as T
-        if self.inplace:
-            new_name = self.text_key
-        else:
-            new_name = 'pii_clean_text'
-
+        new_name = self.text_key if self.inplace else 'pii_clean_text'
         if self.debug_mode:
             schema = T.StructType([
                 T.StructField(new_name, T.StringType(), False),

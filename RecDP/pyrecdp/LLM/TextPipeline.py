@@ -52,13 +52,16 @@ class TextPipeline(BasePipeline):
                 ray_list.append(str(op))
             if op.support_spark:
                 spark_list.append(str(op))
-        if is_ray:
-            if self.engine_name == 'spark' and is_spark:
-                return 'spark'
-            else:
-                return 'ray'
-        elif is_spark:
+        if (
+            is_ray
+            and self.engine_name == 'spark'
+            and is_spark
+            or not is_ray
+            and is_spark
+        ):
             return 'spark'
+        elif is_ray:
+            return 'ray'
         else:
             print(
                 f"We can't identify an uniform engine for this pipeline. \n  Operations work on Ray are {ray_list}. \n  Operations work on Spark are {spark_list}")
@@ -86,7 +89,7 @@ class TextPipeline(BasePipeline):
                     ray.init()
 
             # execute
-            with Timer(f"execute with ray"):
+            with Timer("execute with ray"):
                 for op in executable_sequence:
                     if ds is not None and isinstance(op, DatasetReader):
                         if not isinstance(ds, Dataset):
@@ -104,7 +107,7 @@ class TextPipeline(BasePipeline):
                 self.rdp = SparkDataProcessor()
 
             # execute
-            with Timer(f"execute with spark"):
+            with Timer("execute with spark"):
                 for op in executable_sequence:
                     if ds is not None and isinstance(op, DatasetReader):
                         if not isinstance(ds, DataFrame):
@@ -132,11 +135,7 @@ class TextPipeline(BasePipeline):
 
         if not isinstance(config, dict):
             op = config
-            if max_idx == -1:
-                leaf_child = None
-            else:
-                leaf_child = [pipeline_chain[-1]]
-
+            leaf_child = None if max_idx == -1 else [pipeline_chain[-1]]
             config = {
                 "children": leaf_child,
                 "inline_function": op,
@@ -174,21 +173,20 @@ class TextPipeline(BasePipeline):
             return self.pipeline
         # because we insert a new operation, replace next operator with new children
         for to_replace_child in children:
-            # iterate all children, and find next operators
-            next = []
-            for idx in pipeline_chain:
-                if self.pipeline[idx].children and to_replace_child == self.pipeline[idx].children[0]:
-                    # we only replace next when its first child matches.
-                    # This is a fix for deduplication, because we don't want to replace dictDF operator.
-                    next.append(idx)
-
+            next = [
+                idx
+                for idx in pipeline_chain
+                if self.pipeline[idx].children
+                and to_replace_child == self.pipeline[idx].children[0]
+            ]
             for idx in next:
                 # replace next's children with new added operator
                 children_in_next = self.pipeline[idx].children
-                found = {}
-                for id, child in enumerate(children_in_next):
-                    if child == to_replace_child:
-                        found[id] = cur_idx
+                found = {
+                    id: cur_idx
+                    for id, child in enumerate(children_in_next)
+                    if child == to_replace_child
+                }
                 for k, v in found.items():
                     self.pipeline[idx].children[k] = v
         return self.pipeline[cur_idx]
@@ -224,14 +222,21 @@ class ResumableTextPipeline(TextPipeline):
         op = self.find_operation(['SourcedParquetReader', 'ParquetReader', 'PerfileSourcedParquetReader', 'GlobalParquetReader'])
         if op is not None:
             from pyrecdp.primitives.operations import GlobalParquetReader
-            reader_op = self.add_operation(config={"children": deepcopy(op.children), "inline_function": GlobalParquetReader(**op.config)})
-            return reader_op
-
+            return self.add_operation(
+                config={
+                    "children": deepcopy(op.children),
+                    "inline_function": GlobalParquetReader(**op.config),
+                }
+            )
         op = self.find_operation(['SourcedJsonlReader', 'JsonlReader', 'PerfileSourcedJsonlReader', 'GlobalJsonlReader'])
         if op is not None:
             from pyrecdp.primitives.operations import GlobalJsonlReader
-            reader_op = self.add_operation(config={"children": deepcopy(op.children), "inline_function": GlobalJsonlReader(**op.config)})
-            return reader_op                
+            return self.add_operation(
+                config={
+                    "children": deepcopy(op.children),
+                    "inline_function": GlobalJsonlReader(**op.config),
+                }
+            )                
 
     def optimize_execute_plan(self):
         # update for deduplication
@@ -301,7 +306,7 @@ class ResumableTextPipeline(TextPipeline):
         else:
             status_tracker = open(status_log_path, 'w')
             done_files = []
-        
+
 
         # prepare pipeline
         if not hasattr(self, 'executable_pipeline') or not hasattr(self, 'executable_sequence'):
@@ -310,7 +315,7 @@ class ResumableTextPipeline(TextPipeline):
         executable_sequence = self.executable_sequence
 
         print(executable_sequence)
-        
+
         engine_name = self.check_platform(executable_sequence)
         self.engine_name = engine_name
         # explode one pipeline to multiple sub pipeline (per file)
@@ -348,7 +353,7 @@ class ResumableTextPipeline(TextPipeline):
                 for idx, op in enumerate(op_chain):
                     if idx == 0:
                         op.execute_ray(executable_pipeline, ds_reader)
-                    elif isinstance(op, PerfileParquetWriter) or isinstance(op, PerfileJsonlWriter):
+                    elif isinstance(op, (PerfileParquetWriter, PerfileJsonlWriter)):
                         op.execute_ray(executable_pipeline, source_id)
                     else:
                         op.execute_ray(executable_pipeline)
@@ -365,20 +370,19 @@ class ResumableTextPipeline(TextPipeline):
                 self.rdp = SparkDataProcessor()
 
             # To process every op before Perfile Reader
-            with Timer(f"execute with spark for global tasks"):                
+            with Timer("execute with spark for global tasks"):        
                 for op in executable_sequence:
-                    if not isinstance(op, PerfileReader):
-                        op.statistics_flag = self.statistics_flag
-                        op.execute_spark(executable_pipeline, self.rdp)
-                        if self.statistics_flag:
-                            op_chain.append(op)
-                    else:
+                    if isinstance(op, PerfileReader):
                         break
+                    op.statistics_flag = self.statistics_flag
+                    op.execute_spark(executable_pipeline, self.rdp)
+                    if self.statistics_flag:
+                        op_chain.append(op)
                 if self.statistics_flag:
                     for op in op_chain:
                         self.op_summary(op, output_dir)
                     op_chain = []
-            
+
             # To process since Perfile Reader
             for op in executable_sequence:
                 if isinstance(op, PerfileReader):
@@ -404,7 +408,7 @@ class ResumableTextPipeline(TextPipeline):
                 for idx, op in enumerate(op_chain):
                     if idx == 0:
                         op.execute_spark(executable_pipeline, rdp = self.rdp, child_ds = ds_reader)
-                    elif isinstance(op, PerfileParquetWriter) or isinstance(op, PerfileJsonlWriter):
+                    elif isinstance(op, (PerfileParquetWriter, PerfileJsonlWriter)):
                         op.execute_spark(executable_pipeline, source_id = source_id)
                     else:
                         op.execute_spark(executable_pipeline, rdp=self.rdp)
@@ -416,15 +420,15 @@ class ResumableTextPipeline(TextPipeline):
                 if self.statistics_flag:
                     for op in op_chain:
                         self.op_summary(op, output_dir)
-                            
+
 
                 del ds_reader
         else:
             raise NotImplementedError(f"ResumableTextPipeline is not support {engine_name} yet")
-        
+
         logger.info(
             f"Completed! ResumableTextPipeline will not return dataset, please check {output_dir} for verification.")
-        
+
         status_tracker.close()
 
         # fetch result

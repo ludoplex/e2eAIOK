@@ -19,23 +19,18 @@ class AutoFE():
             pipeline = self.auto_pipeline['relational']
             print("AutoFE started to create data pipeline")
             self.auto_pipeline['wrangler'] = FeatureWrangler(data_pipeline=pipeline, exclude_op = exclude_op, include_op = include_op, time_series = time_series)
-            pipeline = self.auto_pipeline['wrangler']
-            config = {
-                'model_file': 'autofe_lightgbm.mdl',
-                'objective': infer_problem_type(pipeline.dataset[pipeline.main_table], label),
-                'model_name': 'lightgbm'}
-            self.auto_pipeline['estimator'] = FeatureEstimator(data_pipeline = pipeline, config = config)
         else:
             print("AutoFE started to profile data")
             self.auto_pipeline['profiler'] = FeatureProfiler(dataset=dataset, label=label)
             print("AutoFE started to create data pipeline")
             self.auto_pipeline['wrangler'] = FeatureWrangler(dataset=dataset, label=label, time_series = time_series, exclude_op = exclude_op, include_op = include_op)
-            pipeline = self.auto_pipeline['wrangler']
-            config = {
-                'model_file': 'autofe_lightgbm.mdl',
-                'objective': infer_problem_type(pipeline.dataset[pipeline.main_table], label),
-                'model_name': 'lightgbm'}
-            self.auto_pipeline['estimator'] = FeatureEstimator(data_pipeline = pipeline, config = config)
+
+        pipeline = self.auto_pipeline['wrangler']
+        config = {
+            'model_file': 'autofe_lightgbm.mdl',
+            'objective': infer_problem_type(pipeline.dataset[pipeline.main_table], label),
+            'model_name': 'lightgbm'}
+        self.auto_pipeline['estimator'] = FeatureEstimator(data_pipeline = pipeline, config = config)
 
     def fit_transform(self, engine_type = 'pandas', no_cache = False, *args, **kwargs):
         print("AutoFE started to fit_transform data")
@@ -72,13 +67,11 @@ class AutoFE():
         if self.auto_pipeline['relational']:
             return self.auto_pipeline['relational'].get_transformed_cache()
         else:
-            ret_df = self.auto_pipeline['estimator'].get_transformed_cache()
-            return ret_df
+            return self.auto_pipeline['estimator'].get_transformed_cache()
         
     def get_feature_list(self):
         fe_imp_dict = self.auto_pipeline['estimator'].get_feature_importance()
-        feature_list = [i[0] for i in fe_imp_dict if i[1] > 0]
-        return feature_list
+        return [i[0] for i in fe_imp_dict if i[1] > 0]
     
     def add_operation(self, config):
         if self.auto_pipeline['relational']:

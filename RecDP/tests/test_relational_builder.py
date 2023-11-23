@@ -23,7 +23,10 @@ class TestRelationalBuilder(unittest.TestCase):
             'page_views': "page_views_sample.csv",
             'promoted_content': "promoted_content.csv"}
         dir_path = f"{pathlib}/tests/data/outbrain/"
-        train_data = dict((f_name, pd.read_csv(f"{dir_path}/{f_path}")) for f_name, f_path in train_data.items())
+        train_data = {
+            f_name: pd.read_csv(f"{dir_path}/{f_path}")
+            for f_name, f_path in train_data.items()
+        }
         relation_pipeline = RelationalBuilder(dataset=train_data, label="clicked")
         pipeline = FeatureWrangler(data_pipeline=relation_pipeline)
         #print(pipeline.export())
@@ -44,7 +47,9 @@ class TestRelationalBuilder(unittest.TestCase):
             'page_views': "page_views_sample.csv",
             'promoted_content': "promoted_content.csv"}
         dir_path = f"{pathlib}/tests/data/outbrain/"
-        train_data = dict((f_name, f"{dir_path}/{f_path}") for f_name, f_path in train_data.items())
+        train_data = {
+            f_name: f"{dir_path}/{f_path}" for f_name, f_path in train_data.items()
+        }
         relation_pipeline = RelationalBuilder(dataset=train_data, label="clicked")
         pipeline = FeatureWrangler(data_pipeline=relation_pipeline)
         ret_df = pipeline.fit_transform(engine_type = 'spark')

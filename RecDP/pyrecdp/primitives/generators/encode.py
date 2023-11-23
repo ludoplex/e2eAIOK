@@ -25,13 +25,12 @@ class LabelEncodeFeatureGenerator(super_class):
                 feature_in_out[feature] = (f"{folder}/{feature}_categorify_dict", feature)
                 is_useful = True
                 ret_pa_schema[idx] = out_schema
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = feature_in_out
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'categorify', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = feature_in_out
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'categorify', config = config)
+        return pipeline, cur_idx, cur_idx
 
 class OneHotFeatureGenerator(super_class):
     def __init__(self, **kwargs):
@@ -50,12 +49,11 @@ class OneHotFeatureGenerator(super_class):
                 config[pa_field.name] = pa_field.config["is_onehot"]
                 is_useful = True
                 ret_pa_schema.extend(out_schema)
-        if is_useful:
-            cur_idx = max_idx + 1
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'onehot_encode', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'onehot_encode', config = config)
+        return pipeline, cur_idx, cur_idx
         
 class ListOneHotFeatureGenerator(super_class):
     def __init__(self, **kwargs):
@@ -74,12 +72,11 @@ class ListOneHotFeatureGenerator(super_class):
                 config[pa_field.name] = pa_field.config["is_list_string"]
                 is_useful = True
                 ret_pa_schema.extend(out_schema)
-        if is_useful:
-            cur_idx = max_idx + 1
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'list_onehot_encode', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'list_onehot_encode', config = config)
+        return pipeline, cur_idx, cur_idx
         
 class TargetEncodeFeatureGenerator(super_class):
     def __init__(self, **kwargs):
@@ -99,17 +96,14 @@ class TargetEncodeFeatureGenerator(super_class):
                 feature_in_out[feature] = (f"{folder}/{feature}_TE_dict.pkl", out_schema.name)
                 is_useful = True
                 ret_pa_schema.append(out_schema)
-        if is_useful:
-            # find label column
-            label_list = [pa_field.name for pa_field in pa_schema if pa_field.is_label]
-            cur_idx = max_idx + 1
-            config = {}
-            config['feature_in_out'] = feature_in_out
-            config['label'] = label_list[0]
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'target_encode', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        # find label column
+        label_list = [pa_field.name for pa_field in pa_schema if pa_field.is_label]
+        cur_idx = max_idx + 1
+        config = {'feature_in_out': feature_in_out, 'label': label_list[0]}
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'target_encode', config = config)
+        return pipeline, cur_idx, cur_idx
 
 class CountEncodeFeatureGenerator(super_class):
     def __init__(self, **kwargs):
@@ -129,10 +123,9 @@ class CountEncodeFeatureGenerator(super_class):
                 feature_in_out[feature] = (f"{folder}/{feature}_CE_dict.pkl", out_schema.name)
                 is_useful = True
                 ret_pa_schema.append(out_schema)
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = feature_in_out
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'count_encode', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = feature_in_out
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'count_encode', config = config)
+        return pipeline, cur_idx, cur_idx

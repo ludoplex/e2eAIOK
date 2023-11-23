@@ -9,8 +9,7 @@ from pyrecdp.primitives.operations import JsonlReader, ParquetReader, PerfilePar
 def filter_by_blocklist_spark(spark_df):
     from pyrecdp.primitives.operations import URLFilter
     op = URLFilter()
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_blocklist(data_dir, out_dir, data_file_type="jsonl"):
@@ -37,8 +36,7 @@ def filter_by_blocklist(data_dir, out_dir, data_file_type="jsonl"):
 def filter_by_bad_words_spark(spark_df, language="en"):
     from pyrecdp.primitives.operations import BadwordsFilter
     op = BadwordsFilter(language=language)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_bad_words(data_dir, out_dir, data_file_type="jsonl", language="en"):
@@ -65,8 +63,7 @@ def filter_by_bad_words(data_dir, out_dir, data_file_type="jsonl", language="en"
 def filter_by_length_spark(spark_df, min_len=100, max_len=-1):
     from pyrecdp.primitives.operations import LengthFilter
     op = LengthFilter(min_len=min_len, max_len=max_len)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_length(data_dir, out_dir, data_file_type="jsonl", min_len=100, max_len=-1):
@@ -93,8 +90,7 @@ def filter_by_length(data_dir, out_dir, data_file_type="jsonl", min_len=100, max
 def filter_by_alphanumeric_spark(spark_df, min_ratio=0.25, max_ratio=sys.maxsize):
     from pyrecdp.primitives.operations import AlphanumericFilter
     op = AlphanumericFilter(min_ratio=min_ratio, max_ratio=max_ratio)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_alphanumeric(data_dir, out_dir, data_file_type="jsonl", min_ratio=0.25, max_ratio=sys.maxsize):
@@ -121,8 +117,7 @@ def filter_by_alphanumeric(data_dir, out_dir, data_file_type="jsonl", min_ratio=
 def filter_by_average_line_length_spark(spark_df, min_len=10, max_len=sys.maxsize):
     from pyrecdp.primitives.operations import AverageLineLengthFilter
     op = AverageLineLengthFilter(min_len=min_len, max_len=max_len)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_average_line_length(data_dir, out_dir, data_file_type="jsonl", min_len=10, max_len=sys.maxsize):
@@ -149,8 +144,7 @@ def filter_by_average_line_length(data_dir, out_dir, data_file_type="jsonl", min
 def filter_by_maximum_line_length_spark(spark_df, min_len=10, max_len=sys.maxsize):
     from pyrecdp.primitives.operations import MaximumLineLengthFilter
     op = MaximumLineLengthFilter(min_len=min_len, max_len=max_len)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_maximum_line_length(data_dir, out_dir, data_file_type="jsonl", min_len=10, max_len=sys.maxsize):
@@ -177,8 +171,7 @@ def filter_by_maximum_line_length(data_dir, out_dir, data_file_type="jsonl", min
 def filter_by_special_characters_spark(spark_df, min_ratio=0.0, max_ratio=0.25):
     from pyrecdp.primitives.operations import SpecialCharactersFilter
     op = SpecialCharactersFilter(min_ratio=min_ratio, max_ratio=max_ratio)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_special_characters(data_dir, out_dir, data_file_type="jsonl", min_ratio=0.0, max_ratio=0.25):
@@ -205,8 +198,7 @@ def filter_by_special_characters(data_dir, out_dir, data_file_type="jsonl", min_
 def filter_by_token_num_spark(spark_df, min_num=10, max_num=sys.maxsize):
     from pyrecdp.primitives.operations import TokenNumFilter
     op = TokenNumFilter(min_num=min_num, max_num=max_num)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_token_num(data_dir, out_dir, data_file_type="jsonl", min_num=10, max_num=sys.maxsize):
@@ -233,8 +225,7 @@ def filter_by_token_num(data_dir, out_dir, data_file_type="jsonl", min_num=10, m
 def filter_by_word_num_spark(spark_df, min_num=10, max_num=sys.maxsize, language='en'):
     from pyrecdp.primitives.operations import WordNumFilter
     op = WordNumFilter(min_num=min_num, max_num=max_num, language=language)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_word_num(data_dir, out_dir, data_file_type="jsonl", min_num=10, max_num=sys.maxsize, language='en'):
@@ -261,8 +252,7 @@ def filter_by_word_num(data_dir, out_dir, data_file_type="jsonl", min_num=10, ma
 def filter_by_word_repetition_spark(spark_df, rep_len=10, min_ratio=0.0, max_ratio=0.5, language='en'):
     from pyrecdp.primitives.operations import WordRepetitionFilter
     op = WordRepetitionFilter(rep_len=rep_len, min_ratio=min_ratio, max_ratio=max_ratio, language=language)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_word_repetition(data_dir, out_dir, data_file_type="jsonl", rep_len=10, min_ratio=0.0, max_ratio=0.5,
@@ -292,8 +282,7 @@ def filter_by_word_repetition(data_dir, out_dir, data_file_type="jsonl", rep_len
 def filter_by_perplexity_spark(spark_df, max_ppl=1500, language='en'):
     from pyrecdp.primitives.operations import PerplexityFilter
     op = PerplexityFilter(max_ppl=max_ppl, language=language)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def filter_by_perplexity(data_dir, out_dir, data_file_type="jsonl", max_ppl=1500, language='en'):
@@ -332,37 +321,37 @@ if __name__ == "__main__":
         import shutil
         shutil.rmtree(output_dir)
         os.makedirs(output_dir)
-    if "length" == filter_type:
+    if filter_type == "length":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_length(data_dir, output_dir, data_file_type)
-    elif "bad_words" == filter_type:
+    elif filter_type == "bad_words":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_bad_words(data_dir, output_dir, data_file_type)
-    elif "url_blocklist" == filter_type:
+    elif filter_type == "url_blocklist":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_blocklist(data_dir, output_dir, data_file_type)
-    elif "alphanumeric" == filter_type:
+    elif filter_type == "alphanumeric":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_alphanumeric(data_dir, output_dir, data_file_type)
-    elif "average_line_length" == filter_type:
+    elif filter_type == "average_line_length":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_average_line_length(data_dir, output_dir, data_file_type)
-    elif "maximum_line_length" == filter_type:
+    elif filter_type == "maximum_line_length":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_maximum_line_length(data_dir, output_dir, data_file_type)
-    elif "special_characters" == filter_type:
+    elif filter_type == "special_characters":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_special_characters(data_dir, output_dir, data_file_type)
-    elif "token_num" == filter_type:
+    elif filter_type == "token_num":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_token_num(data_dir, output_dir, data_file_type)
-    elif "word_num" == filter_type:
+    elif filter_type == "word_num":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_word_num(data_dir, output_dir, data_file_type)
-    elif "perplexity" == filter_type:
+    elif filter_type == "perplexity":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_perplexity(data_dir, output_dir, data_file_type)
-    elif "word_repetition" == filter_type:
+    elif filter_type == "word_repetition":
         with Timer(f"Processing {filter_type} filter for {data_dir}"):
             filter_by_word_repetition(data_dir, output_dir, data_file_type)
     else:

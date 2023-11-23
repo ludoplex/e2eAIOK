@@ -24,10 +24,7 @@ class AlphanumericFilter(BaseFilter):
         def compute(text) -> bool:
             alnum_count = sum(map(lambda char: 1 if char.isalnum() else 0, text))
             alnum_ratio = (alnum_count / len(text)) if len(text) != 0 else 0.0
-            if min_ratio <= alnum_ratio <= max_ratio:
-                return True
-            else:
-                return False
+            return min_ratio <= alnum_ratio <= max_ratio
 
         return compute
 

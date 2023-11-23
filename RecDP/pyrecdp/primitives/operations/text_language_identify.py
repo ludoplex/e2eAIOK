@@ -158,9 +158,9 @@ class Classifier(Transformer):
         self.n_accepted += 1
         if self.top == 1:
             doc[self.out_field] = labels[0]
-            doc[self.out_field + "_score"] = scores[0]
+            doc[f"{self.out_field}_score"] = scores[0]
         else:
-            doc[self.out_field] = {l: s for l, s in zip(labels, scores)}
+            doc[self.out_field] = dict(zip(labels, scores))
         return doc
 
     def __repr__(self):

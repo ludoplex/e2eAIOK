@@ -39,9 +39,7 @@ class TextCustomerFilter(BaseFilter):
     @statistics_decorator
     def process_rayds(self, ds: Dataset) -> Dataset:
         if self.inplace:
-            # remove unwanted text row inplace
-            filtered_ds = ds.filter(lambda x: self.func(x[self.text_key]))
-            return filtered_ds
+            return ds.filter(lambda x: self.func(x[self.text_key]))
         else:
             raise NotImplementedError(f"We only support inplace modification for {self.__class__.__name__}.")
 

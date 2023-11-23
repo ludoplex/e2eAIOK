@@ -25,16 +25,10 @@ def diagnostic_plots(df_series, col_name, plot = False):
     return abs(np.log(res[1][0]))
 
 def log_transform(x):
-    if (x.min() <= 0):
-        return np.log1p(x - x.min() + 1e-16)
-    else:
-        return np.log1p(x)
+    return np.log1p(x - x.min() + 1e-16) if (x.min() <= 0) else np.log1p(x)
 
 def sqrt_transform(x):
-    if (x.min() <= 0):
-        return (x - x.min() + 1e-16)**(1/2)
-    else:
-        return x**(1/2)
+    return (x - x.min() + 1e-16)**(1/2) if (x.min() <= 0) else x**(1/2)
     
 def exp_transform(x):
     return np.exp(x)
@@ -164,8 +158,6 @@ def find_best_normal_transform(df, included_cols = None, excluded_cols = None, p
     elif save_dict:
         with open('best_transform_dict.pickle', 'wb') as handle:
             pickle.dump(best_transform_dict, handle, protocol = pickle.HIGHEST_PROTOCOL)
-    else:
-        pass
     return best_transform_dict
 
 def apply_best_normal_transform(df, inplace = True, best_transform_dict = None, included_cols = None, excluded_cols = None, plot = False):

@@ -31,7 +31,10 @@ def main():
 
     #files = ["day_%d" % i for i in range(0, 24)]
     SO_FILE = {'question': 'Questions.csv', 'answer': 'Answers.csv'}
-    file_names = dict((key, path_prefix + os.path.join(current_path, data_folder, filename)) for key, filename in SO_FILE.items())
+    file_names = {
+        key: path_prefix + os.path.join(current_path, data_folder, filename)
+        for key, filename in SO_FILE.items()
+    }
 
     proc = DataProcessor(spark, path_prefix, current_path=current_path, shuffle_disk_capacity="1200GB", spark_mode='local')
     t0 = timer()

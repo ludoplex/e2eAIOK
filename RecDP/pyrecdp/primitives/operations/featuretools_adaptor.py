@@ -21,4 +21,6 @@ class FeaturetoolsOperation(BaseOperation):
         return generate_ft_feature
     
     def get_function_spark(self, rdp):
-        raise NotImplementedError(f"operations based on featuretools are not support Spark DataFrame yet.")
+        raise NotImplementedError(
+            "operations based on featuretools are not support Spark DataFrame yet."
+        )

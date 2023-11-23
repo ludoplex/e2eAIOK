@@ -8,7 +8,16 @@ class GopherQualityFilter(BaseFilter):
     def __init__(self, text_key = 'text'):
         settings = {'text_key': text_key}
         super().__init__(settings)
-        self.desired_stop_words = set(['the', 'be', 'to', 'of', 'and', 'that', 'have', 'with'])
+        self.desired_stop_words = {
+            'the',
+            'be',
+            'to',
+            'of',
+            'and',
+            'that',
+            'have',
+            'with',
+        }
         self.alphabet = set('abcdefghijklmnopqrstuvwxyz')
 
     def get_compute_func(self, *args, **kwargs):
@@ -19,7 +28,7 @@ class GopherQualityFilter(BaseFilter):
                 if char in alphabet:
                     return 1
             return 0
-        
+
         def clean(s):
             s = s.lower()
             s = s.translate(str.maketrans("", "", string.punctuation))
@@ -47,8 +56,16 @@ class GopherQualityFilter(BaseFilter):
                 stats['num_hash'] += line.count('#')
                 stats['num_ellipsis'] += line.count('...')
                 stats['total_word_length'] += sum(len(word) for word in words)
-                stats['desired_stop_words_found'].update(set(word for word in clean(line).split(" ") if word in desired_stop_words))
-                stats['num_words_with_alphabet'] += sum([does_word_have_alphabet(word) for word in words])
+                stats['desired_stop_words_found'].update(
+                    {
+                        word
+                        for word in clean(line).split(" ")
+                        if word in desired_stop_words
+                    }
+                )
+                stats['num_words_with_alphabet'] += sum(
+                    does_word_have_alphabet(word) for word in words
+                )
             results = {
                 'num_words' : stats['num_words'],
                 'mean_word_length' : round(stats['total_word_length'] / stats['num_words'], 2), 
@@ -70,6 +87,7 @@ class GopherQualityFilter(BaseFilter):
             ]
             prediction = any(criterion)
             return not prediction
+
         return compute
 
 LLMOPERATORS.register(GopherQualityFilter)

@@ -16,20 +16,20 @@ class LengthFilter(BaseFilter):
         self.max_len = max_len
 
     def compute(self, text) -> bool:
-        if len(text) < self.min_len or (self.max_len != -1 and len(text) > self.max_len):
-            return False
-        else:
-            return True
+        return len(text) >= self.min_len and (
+            self.max_len == -1 or len(text) <= self.max_len
+        )
 
     def get_compute_func(self, *args, **kwargs):
         min_len = self.min_len
         max_len = self.max_len
 
         def compute(text) -> bool:
-            if text is None or len(text) < min_len or (max_len != -1 and len(text) > max_len):
-                return False
-            else:
-                return True
+            return (
+                text is not None
+                and len(text) >= min_len
+                and (max_len == -1 or len(text) <= max_len)
+            )
 
         return compute
 

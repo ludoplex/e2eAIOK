@@ -125,8 +125,7 @@ class TransformerLM(TransformerBase):
                     tgt_key_padding_mask=src_key_padding_mask,
                 )
 
-        pred = self.output_proj(encoder_out)
-        return pred
+        return self.output_proj(encoder_out)
 
     def _reset_params(self):
         for p in self.parameters():
@@ -136,10 +135,7 @@ class TransformerLM(TransformerBase):
     def make_masks(
         self, src, pad_idx=0, look_ahead_mask=True, padding_mask=True
     ):
-        src_mask = None
-        if look_ahead_mask:
-            src_mask = get_lookahead_mask(src)
-
+        src_mask = get_lookahead_mask(src) if look_ahead_mask else None
         src_key_padding_mask = None
         if padding_mask:
             src_key_padding_mask = get_key_padding_mask(src, pad_idx)

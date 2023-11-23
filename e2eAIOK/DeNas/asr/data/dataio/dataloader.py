@@ -21,8 +21,14 @@ def get_dataloader(dataset, batch_size, distributed):
         sampler = DistributedSampler(dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank())
     else:
         sampler = None
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=(not distributed), collate_fn=PaddedBatch, drop_last=True, sampler=sampler)
-    return dataloader
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=(not distributed),
+        collate_fn=PaddedBatch,
+        drop_last=True,
+        sampler=sampler,
+    )
 
 def make_dataloader(dataset, stage, dist, **loader_kwargs):
     if stage == 'train':
@@ -45,12 +51,11 @@ def make_dataloader(dataset, stage, dist, **loader_kwargs):
         # Should delete shuffle because you can't set both Sampler and
         # shuffle
         del loader_kwargs["shuffle"]
-    # Create the loader
-    if isinstance(dataset, IterableDataset):
-        dataloader = DataLoader(dataset, **loader_kwargs)
-    else:
-        dataloader = SaveableDataLoader(dataset, **loader_kwargs)
-    return dataloader
+    return (
+        DataLoader(dataset, **loader_kwargs)
+        if isinstance(dataset, IterableDataset)
+        else SaveableDataLoader(dataset, **loader_kwargs)
+    )
 
 
 def train_loader_specifics(dataset, distributed_launch, loader_kwargs):
@@ -70,41 +75,42 @@ def train_loader_specifics(dataset, distributed_launch, loader_kwargs):
         # shuffling:
         del loader_kwargs["shuffle"]
     # Possibly make a DistributedSampler or a wrapper for some other sampler
-    if distributed_launch and not isinstance(dataset, IterableDataset):
-        drop_last = loader_kwargs.get("drop_last", False)
-        # num_replicas arg is equal to world_size
-        # and retrieved automatically within
-        # DistributedSampler obj.
-        if sampler is not None:
-            train_sampler = DistributedSamplerWrapper(
-                sampler,
-                rank=rank,
-                drop_last=drop_last,
-                shuffle=shuffle,
+    if distributed_launch:
+        if not isinstance(dataset, IterableDataset):
+            drop_last = loader_kwargs.get("drop_last", False)
+            # num_replicas arg is equal to world_size
+            # and retrieved automatically within
+            # DistributedSampler obj.
+            if sampler is not None:
+                train_sampler = DistributedSamplerWrapper(
+                    sampler,
+                    rank=rank,
+                    drop_last=drop_last,
+                    shuffle=shuffle,
+                )
+                # with DistributedSamplerWrapper, one must disable shuffling for dataloader
+                loader_kwargs["shuffle"] = False
+                loader_kwargs["sampler"] = train_sampler
+            elif loader_kwargs.get("batch_sampler") is None:
+                # no sampler and batch-sampler
+                train_sampler = DistributedSampler(
+                    dataset, num_replicas=dist.get_world_size(), rank=rank, shuffle=False, drop_last=drop_last
+                )
+                # with DistributedSamplerWrapper, one must disable shuffling for dataloader
+                loader_kwargs["shuffle"] = False
+                loader_kwargs["sampler"] = train_sampler
+            else:  # batch_sampler was specified
+                train_sampler = DistributedSamplerWrapper(
+                    loader_kwargs.get("batch_sampler", None),
+                    rank=rank,
+                    shuffle=False,
+                )
+                loader_kwargs["batch_sampler"] = train_sampler
+        else:
+            logger.warning(
+                "Cannot automatically solve distributed sampling "
+                "for IterableDataset."
             )
-            # with DistributedSamplerWrapper, one must disable shuffling for dataloader
-            loader_kwargs["shuffle"] = False
-            loader_kwargs["sampler"] = train_sampler
-        elif loader_kwargs.get("batch_sampler") is None:
-            # no sampler and batch-sampler
-            train_sampler = DistributedSampler(
-                dataset, num_replicas=dist.get_world_size(), rank=rank, shuffle=False, drop_last=drop_last
-            )
-            # with DistributedSamplerWrapper, one must disable shuffling for dataloader
-            loader_kwargs["shuffle"] = False
-            loader_kwargs["sampler"] = train_sampler
-        else:  # batch_sampler was specified
-            train_sampler = DistributedSamplerWrapper(
-                loader_kwargs.get("batch_sampler", None),
-                rank=rank,
-                shuffle=False,
-            )
-            loader_kwargs["batch_sampler"] = train_sampler
-    elif distributed_launch and isinstance(dataset, IterableDataset):
-        logger.warning(
-            "Cannot automatically solve distributed sampling "
-            "for IterableDataset."
-        )
     return loader_kwargs
 
 class SaveableDataLoader(DataLoader):

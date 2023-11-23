@@ -83,10 +83,8 @@ class PerfileParquetWriter(BaseLLMOperation):
         self.output_dir = output_dir
         
     def execute_ray(self, pipeline, source_id):
-        child_output = []
         children = self.op.children if self.op.children is not None else []
-        for op in children:
-            child_output.append(pipeline[op].cache)
+        child_output = [pipeline[op].cache for op in children]
         self.cache = self.process_rayds(source_id, *child_output)
         return self.cache
 
@@ -98,10 +96,8 @@ class PerfileParquetWriter(BaseLLMOperation):
         return ds
 
     def execute_spark(self, pipeline, source_id):
-        child_output = []
         children = self.op.children if self.op.children is not None else []
-        for op in children:
-            child_output.append(pipeline[op].cache)
+        child_output = [pipeline[op].cache for op in children]
         self.cache = self.process_spark(source_id, *child_output)
         return self.cache
 
@@ -121,10 +117,8 @@ class PerfileJsonlWriter(BaseLLMOperation):
         self.output_dir = output_dir
         
     def execute_ray(self, pipeline, source_id):
-        child_output = []
         children = self.op.children if self.op.children is not None else []
-        for op in children:
-            child_output.append(pipeline[op].cache)
+        child_output = [pipeline[op].cache for op in children]
         self.cache = self.process_rayds(source_id, *child_output)
         return self.cache
         
@@ -136,10 +130,8 @@ class PerfileJsonlWriter(BaseLLMOperation):
         return ds
     
     def execute_spark(self, pipeline, source_id):
-        child_output = []
         children = self.op.children if self.op.children is not None else []
-        for op in children:
-            child_output.append(pipeline[op].cache)
+        child_output = [pipeline[op].cache for op in children]
         self.cache = self.process_spark(source_id, *child_output)
         return self.cache
 

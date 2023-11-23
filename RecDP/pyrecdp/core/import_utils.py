@@ -54,12 +54,12 @@ def import_faiss(no_avx2: Optional[bool] = None, install_if_miss: bool = True):
         else:
             import faiss
     except ImportError:
-        if install_if_miss:
-            os.system("pip install -q faiss-gpu")
-            os.system("pip install -q faiss-cpu")
-        else:
-            raise ImportError(f"faiss package not found, "
-                              f"please install it with 'pip install faiss-gpu && pip install faiss-cpu'")
+        if not install_if_miss:
+            raise ImportError(
+                "faiss package not found, please install it with 'pip install faiss-gpu && pip install faiss-cpu'"
+            )
+        os.system("pip install -q faiss-gpu")
+        os.system("pip install -q faiss-cpu")
 
 
 def import_langchain(install_if_missing: bool = True):
@@ -72,7 +72,9 @@ def import_langchain(install_if_missing: bool = True):
         if install_if_missing:
             os.system("pip install -q langchain")
         else:
-            raise ImportError(f"langchain package not found, please install it with 'pip install langchain")
+            raise ImportError(
+                "langchain package not found, please install it with 'pip install langchain"
+            )
 
 
 def import_sentence_transformers(install_if_missing: bool = True):
@@ -97,14 +99,13 @@ def import_unstructured(install_if_missing: bool = True):
         import unstructured  # noqa:F401
         from unstructured.partition.auto import partition
     except ImportError:
-        if install_if_missing:
-            os.system("pip install -q  unstructured")
-            os.system("pip install -q  unstructured[ppt, pptx, xlsx]")
-        else:
+        if not install_if_missing:
             raise ValueError(
                 "unstructured package not found, please install it with "
                 "`pip install unstructured`"
             )
+        os.system("pip install -q  unstructured")
+        os.system("pip install -q  unstructured[ppt, pptx, xlsx]")
 
 
 def import_openai(install_if_missing: bool = True):

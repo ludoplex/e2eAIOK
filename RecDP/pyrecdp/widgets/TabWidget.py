@@ -19,7 +19,4 @@ class TabWidget:
             self.view.set_title(idx, tab_name)
             
     def get_tab_from_children(self, tab_name):
-        for n in self.children:
-            if tab_name == n[0]:
-                return n
-        return None
+        return next((n for n in self.children if tab_name == n[0]), None)

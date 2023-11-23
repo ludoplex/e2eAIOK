@@ -7,14 +7,10 @@ from pyrecdp.core.utils import Timer
 
 def sentence_split(spark_df: DataFrame, language='english', text_column='text', new_text_column='text') -> DataFrame:
     from pyrecdp.primitives.operations import DocumentSplit
-    if new_text_column != text_column:
-        inplace = False
-    else:
-        inplace = True
+    inplace = new_text_column == text_column
     text_splitter_args = {'language': language}
     op = DocumentSplit(text_key=text_column, inplace=inplace, text_splitter_args=text_splitter_args)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def run(text_key, data_dir, out_dir, data_file_type, language):

@@ -7,8 +7,7 @@ from pyrecdp.primitives.operations import JsonlReader, ParquetReader, PerfilePar
 def rouge_score_dedup_spark(spark_df, max_ratio=0.7, batch_size=1000):
     from pyrecdp.primitives.operations import RougeScoreDedup
     op = RougeScoreDedup(max_ratio=max_ratio, batch_size=batch_size)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def rouge_score_dedup(data_dir, out_dir, data_file_type="jsonl", max_ratio=0.7, batch_size=1000):

@@ -18,8 +18,12 @@ def detect_name_password(content: str, pipeline: Pipeline, entity_types=None):
     try:
         for entity in pipeline(content):
             entity_group = entity["entity_group"]
-            if ("NAME" == entity_group and PIIEntityType.NAME in entity_types) or \
-                    ("PASSWORD" == entity_group and PIIEntityType.PASSWORD in entity_types):
+            if (
+                entity_group == "NAME"
+                and PIIEntityType.NAME in entity_types
+                or entity_group == "PASSWORD"
+                and PIIEntityType.PASSWORD in entity_types
+            ):
                 matches.append(
                     {
                         "tag": entity_group,

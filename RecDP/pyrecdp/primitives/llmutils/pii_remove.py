@@ -8,8 +8,7 @@ def pii_remove(dataset: DataFrame, model_root_path=None, text_column="text", sho
     spark_df = dataset
     op = PIIRemoval(text_key=text_column, inplace=inplace, model_root_path=model_root_path,
                     debug_mode=show_secret_column, entity_types=entity_types)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def main(config):

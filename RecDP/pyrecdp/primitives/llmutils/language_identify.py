@@ -11,8 +11,7 @@ def language_identify_spark(spark_df, fasttext_model_dir):
     """
     from pyrecdp.primitives.operations import LanguageIdentify
     op = LanguageIdentify(fasttext_model_dir = fasttext_model_dir)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 def language_identify(data_dir, data_file_type, fasttext_model_dir, language_identify_output_dir):
     """

@@ -288,7 +288,7 @@ class DynamicItemDataset(Dataset):
         # define an unbound method to generate puesdo keys
         def keys(self):
             "Returns the keys."
-            return [i for i in range(dataset.__len__())]
+            return list(range(dataset.__len__()))
 
         # bind this method to arrow dataset
         dataset.keys = MethodType(keys, dataset)
@@ -372,7 +372,7 @@ def dataio_prepare(args, tokenizer):
             sig = read_audio(wav)
             # factor = np.random.uniform(0.95, 1.05)
             # sig = resample(sig.numpy(), 16000, int(16000*factor))
-            speed = SpeedPerturb(16000, [x for x in range(95, 105)])
+            speed = SpeedPerturb(16000, list(range(95, 105)))
             sig = speed(sig.unsqueeze(0)).squeeze(0)  # torch.from_numpy(sig)
         else:
             sig = read_audio(wav)
@@ -383,18 +383,15 @@ def dataio_prepare(args, tokenizer):
     # Define text pipeline:
     @utils.data_pipeline.takes("wrd")
     @utils.data_pipeline.provides(
-        "wrd", "tokens_list", "tokens_bos", "tokens_eos", "tokens"
-    )
+            "wrd", "tokens_list", "tokens_bos", "tokens_eos", "tokens"
+        )
     def text_pipeline(wrd):
         yield wrd
         tokens_list = tokenizer.encode_as_ids(wrd)
         yield tokens_list
-        tokens_bos = torch.LongTensor([args["bos_index"]] + (tokens_list))
-        yield tokens_bos
-        tokens_eos = torch.LongTensor(tokens_list + [args["eos_index"]])
-        yield tokens_eos
-        tokens = torch.LongTensor(tokens_list)
-        yield tokens
+        yield torch.LongTensor([args["bos_index"]] + (tokens_list))
+        yield torch.LongTensor(tokens_list + [args["eos_index"]])
+        yield torch.LongTensor(tokens_list)
 
     add_dynamic_item(datasets, text_pipeline)
 

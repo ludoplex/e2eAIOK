@@ -33,10 +33,7 @@ def print_rank_0(*message):
 
 
 def __best_fitting_dtype(vocab_size=None):
-    if vocab_size is not None and vocab_size < 65500:
-        return np.uint16
-    else:
-        return np.int32
+    return np.uint16 if vocab_size is not None and vocab_size < 65500 else np.int32
 
 
 def infer_dataset_impl(path):
@@ -122,18 +119,16 @@ def code(dtype):
 
 
 def index_file_path(prefix_path):
-    return prefix_path + ".idx"
+    return f"{prefix_path}.idx"
 
 
 def data_file_path(prefix_path):
-    return prefix_path + ".bin"
+    return f"{prefix_path}.bin"
 
 
 def create_doc_idx(sizes):
     doc_idx = [0]
-    for i, s in enumerate(sizes):
-        if s == 0:
-            doc_idx.append(i + 1)
+    doc_idx.extend(i + 1 for i, s in enumerate(sizes) if s == 0)
     return doc_idx
 
 
@@ -199,8 +194,7 @@ class IndexedDataset(torch.utils.data.Dataset):
             self.data_file.seek(self.data_offsets[start] * self.element_size)
             self.data_file.readinto(a)
             offsets = list(accumulate(sizes))
-            sents = np.split(a, offsets[:-1])
-            return sents
+            return np.split(a, offsets[:-1])
 
     def __len__(self):
         return self._len
@@ -238,9 +232,9 @@ class IndexedCachedDataset(IndexedDataset):
         if not self.data_file:
             self.read_data(self.path)
         indices = sorted(set(indices))
-        total_size = 0
-        for i in indices:
-            total_size += self.data_offsets[i + 1] - self.data_offsets[i]
+        total_size = sum(
+            self.data_offsets[i + 1] - self.data_offsets[i] for i in indices
+        )
         self.cache = np.empty(total_size, dtype=self.dtype)
         ptx = 0
         self.cache_index.clear()
@@ -267,11 +261,7 @@ class IndexedCachedDataset(IndexedDataset):
             np.copyto(a, self.cache[ptx : ptx + a.size])
             return a
         elif isinstance(idx, slice):
-            # Hack just to make this work, can optimizer later if necessary
-            sents = []
-            for i in range(*idx.indices(len(self))):
-                sents.append(self[i])
-            return sents
+            return [self[i] for i in range(*idx.indices(len(self)))]
 
 
 class IndexedDatasetBuilder(object):
@@ -319,25 +309,23 @@ class IndexedDatasetBuilder(object):
 
         with open(data_file_path(another_file), "rb") as f:
             while True:
-                data = f.read(1024)
-                if data:
+                if data := f.read(1024):
                     self.out_file.write(data)
                 else:
                     break
 
     def finalize(self, index_file):
         self.out_file.close()
-        index = open(index_file, "wb")
-        index.write(b"TNTIDX\x00\x00")
-        index.write(struct.pack("<Q", 1))
-        index.write(struct.pack("<QQ", code(self.dtype), self.element_size))
-        index.write(struct.pack("<QQ", len(self.data_offsets) - 1, len(self.sizes)))
-        index.write(struct.pack("<Q", len(self.doc_idx)))
-        write_longs(index, self.dim_offsets)
-        write_longs(index, self.data_offsets)
-        write_longs(index, self.sizes)
-        write_longs(index, self.doc_idx)
-        index.close()
+        with open(index_file, "wb") as index:
+            index.write(b"TNTIDX\x00\x00")
+            index.write(struct.pack("<Q", 1))
+            index.write(struct.pack("<QQ", code(self.dtype), self.element_size))
+            index.write(struct.pack("<QQ", len(self.data_offsets) - 1, len(self.sizes)))
+            index.write(struct.pack("<Q", len(self.doc_idx)))
+            write_longs(index, self.dim_offsets)
+            write_longs(index, self.data_offsets)
+            write_longs(index, self.sizes)
+            write_longs(index, self.doc_idx)
 
 
 def _warmup_mmap_file(path):
@@ -508,10 +496,9 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         if isinstance(idx, int):
             ptr, size = self._index[idx]
-            np_array = np.frombuffer(
+            return np.frombuffer(
                 self._bin_buffer, dtype=self._index.dtype, count=size, offset=ptr
             )
-            return np_array
         elif isinstance(idx, slice):
             start, stop, step = idx.indices(len(self))
             if step != 1:
@@ -523,8 +510,7 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
             np_array = np.frombuffer(
                 self._bin_buffer, dtype=self._index.dtype, count=total_size, offset=ptr
             )
-            sents = np.split(np_array, offsets[:-1])
-            return sents
+            return np.split(np_array, offsets[:-1])
 
     def get(self, idx, offset=0, length=None):
         """Retrieves a single item from the dataset with the option to only
@@ -536,10 +522,9 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
         if length is None:
             length = size - offset
         ptr += offset * np.dtype(self._index.dtype).itemsize
-        np_array = np.frombuffer(
+        return np.frombuffer(
             self._bin_buffer, dtype=self._index.dtype, count=length, offset=ptr
         )
-        return np_array
 
     @property
     def sizes(self):

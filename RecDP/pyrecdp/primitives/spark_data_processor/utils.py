@@ -20,12 +20,12 @@ def create_spark_context(spark_mode='local', spark_master=None, local_dir=None, 
         num_instances = int(paral / num_cores)
         num_instances = 1 if num_instances < 1 else num_instances
     executor_mem = int(total_mem / num_instances)
-    if spark_mode == 'yarn' or spark_mode == 'standalone':
+    if spark_mode in ['yarn', 'standalone']:
         if spark_master is None:
             raise ValueError("Spark master is None, please set correct spark master!")
     if spark_master is None:
         spark_master = f'local[{paral}]'
-    
+
     print(f"Will assign {paral} cores and {total_mem} M memory for spark")
     conf = SparkConf()
     conf_pairs = [("spark.executorEnv.TRANSFORMERS_OFFLINE", "1"), 
@@ -37,7 +37,7 @@ def create_spark_context(spark_mode='local', spark_master=None, local_dir=None, 
                 ("spark.driver.memory", f"{total_mem}M")]
     if local_dir is not None:
         conf_pairs.append(("spark.local.dir", local_dir))
-    if spark_mode == 'yarn' or spark_mode == 'standalone':
+    if spark_mode in ['yarn', 'standalone']:
         conf_pairs.append(("spark.executor.memory", f"{executor_mem}M"))
         conf_pairs.append(("spark.executor.memoryOverhead", f"{int(executor_mem*0.1)}M"))
         conf_pairs.append(("spark.executor.instances", f"{num_instances}"))
@@ -52,12 +52,13 @@ def create_spark_context(spark_mode='local', spark_master=None, local_dir=None, 
             spark_mode = 'local'
     else:
         conf_pairs.append(("spark.driver.memory", f"{total_mem}M"))
-    
+
     def close_spark(spark_inst):
         try:
             spark_inst.stop()
         except:
             pass
+
     def close_spark_ray(spark_inst):
         raydp.stop_spark()
         if ray.is_initialized():
@@ -99,10 +100,10 @@ def create_spark_context(spark_mode='local', spark_master=None, local_dir=None, 
     return spark, close_caller
     
 def convert_to_spark_dict(orig_dict, schema=['dict_col', 'dict_col_id']):
-    ret = []
-    for row_k, row_v in orig_dict.items():
-        ret.append({schema[0]: row_k, schema[1]: row_v})
-    return ret
+    return [
+        {schema[0]: row_k, schema[1]: row_v}
+        for row_k, row_v in orig_dict.items()
+    ]
 
 
 def convert_to_spark_df(orig_dict, spark):
@@ -115,7 +116,7 @@ def list_dir(path, only_get_one = True):
     dirs = os.listdir(path)
     for files in dirs:
         try:
-            sub_dirs = os.listdir(path + "/" + files)
+            sub_dirs = os.listdir(f"{path}/{files}")
             if not only_get_one:
                 source_path_dict[files] = []
             for file_name in sub_dirs:
@@ -145,15 +146,12 @@ def parse_size(size):
 
 def parse_cores_num(local_str):
     number = re.findall('local\[(\d+)\]', local_str)
-    if len(number) > 0:
-        return int(number[0])
-    else:
-        return os.cpu_count()
+    return int(number[0]) if len(number) > 0 else os.cpu_count()
 
 
 def get_estimate_size_of_dtype(dtype_name):
     units = {'byte': 1, 'short': 2, 'int': 4, 'long': 8, 'float': 4, 'double': 8, 'string': 10}
-    return units[dtype_name] if dtype_name in units else 4
+    return units.get(dtype_name, 4)
 
 
 def get_dtype(df, colname):
@@ -162,21 +160,20 @@ def get_dtype(df, colname):
 
 def _j4py(spark, r):
     sc = spark.sparkContext
-    if isinstance(r, JavaObject):
-        clsName = r.getClass().getSimpleName()
-        # convert RDD into JavaRDD
-        if clsName != 'JavaRDD' and clsName.endswith("RDD"):
-            r = r.toJavaRDD()
-            clsName = 'JavaRDD'
-        elif clsName == 'JavaRDD':
-            jrdd = sc._jvm.SerDe.javaToPython(r)
-            return RDD(jrdd, sc)
-        elif clsName == 'DataFrame' or clsName == 'Dataset':
-            return DataFrame(r, SQLContext.getOrCreate(sc))
-        else:
-             raise NotImplementedError(f"can't convert {clsName} {r} to java")
-    else:
+    if not isinstance(r, JavaObject):
         raise NotImplementedError(f"can't convert {r} to java")
+    clsName = r.getClass().getSimpleName()
+        # convert RDD into JavaRDD
+    if clsName != 'JavaRDD' and clsName.endswith("RDD"):
+        r = r.toJavaRDD()
+        clsName = 'JavaRDD'
+    elif clsName == 'JavaRDD':
+        jrdd = sc._jvm.SerDe.javaToPython(r)
+        return RDD(jrdd, sc)
+    elif clsName in ['DataFrame', 'Dataset']:
+        return DataFrame(r, SQLContext.getOrCreate(sc))
+    else:
+        raise NotImplementedError(f"can't convert {clsName} {r} to java")
     return r
 
 
@@ -191,9 +188,7 @@ def _py4j(obj, gateway = None):
                                       gateway._gateway_client)
     elif isinstance(obj, JavaObject):
         pass
-    elif isinstance(obj, (int, float, bool, bytes, str)):
-        pass
-    else:
+    elif not isinstance(obj, (int, float, bool, bytes, str)):
         raise NotImplementedError(f"can't convert {str(obj)} to python")
     return obj    
 

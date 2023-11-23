@@ -135,11 +135,7 @@ class TransformerEncoderLayer(nn.Module):
         src_key_padding_mask: Optional[torch.Tensor] = None,
         pos_embs: Optional[torch.Tensor] = None,
     ):
-        if self.normalize_before:
-            src1 = self.norm1(src)
-        else:
-            src1 = src
-
+        src1 = self.norm1(src) if self.normalize_before else src
         output, self_attn = self.self_att(
             src1,
             src1,
@@ -154,10 +150,7 @@ class TransformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             src = self.norm1(src)
 
-        if self.normalize_before:
-            src1 = self.norm2(src)
-        else:
-            src1 = src
+        src1 = self.norm2(src) if self.normalize_before else src
         output = self.pos_ffn(src1)
 
         # add & norm
@@ -196,9 +189,9 @@ class TransformerEncoder(nn.Module):
                     vdim=vdim,
                     dropout=dropout,
                     activation=activation,
-                    normalize_before=normalize_before
+                    normalize_before=normalize_before,
                 )
-                for i in range(num_layers)
+                for _ in range(num_layers)
             ]
         )
         self.norm = LayerNorm(d_model, eps=1e-6)
@@ -283,11 +276,7 @@ class TransformerDecoderLayer(nn.Module):
         pos_embs_tgt=None,
         pos_embs_src=None,
     ):
-        if self.normalize_before:
-            tgt1 = self.norm1(tgt)
-        else:
-            tgt1 = tgt
-
+        tgt1 = self.norm1(tgt) if self.normalize_before else tgt
         # self-attention over the target sequence
         tgt2, self_attn = self.self_attn(
             query=tgt1,
@@ -303,11 +292,7 @@ class TransformerDecoderLayer(nn.Module):
         if not self.normalize_before:
             tgt = self.norm1(tgt)
 
-        if self.normalize_before:
-            tgt1 = self.norm2(tgt)
-        else:
-            tgt1 = tgt
-
+        tgt1 = self.norm2(tgt) if self.normalize_before else tgt
         # multi-head attention over the target sequence and encoder states
 
         tgt2, multihead_attention = self.mutihead_attn(
@@ -324,11 +309,7 @@ class TransformerDecoderLayer(nn.Module):
         if not self.normalize_before:
             tgt = self.norm2(tgt)
 
-        if self.normalize_before:
-            tgt1 = self.norm3(tgt)
-        else:
-            tgt1 = tgt
-
+        tgt1 = self.norm3(tgt) if self.normalize_before else tgt
         tgt2 = self.pos_ffn(tgt1)
 
         # add & norm
@@ -442,6 +423,6 @@ def get_lookahead_mask(padded_input):
     mask = (
         mask.float()
         .masked_fill(mask == 0, float("-inf"))
-        .masked_fill(mask == 1, float(0.0))
+        .masked_fill(mask == 1, 0.0)
     )
     return mask.detach().to(padded_input.device)

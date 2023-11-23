@@ -19,12 +19,12 @@ def customer_bin(data, FEATURES_NUM):
             return '(0.8,1)'
         else:
             return '[1]'
- 
+
     # Assumption -- heavy right skew, wide range (e.g. 0 all the way to 1000+)
-    for feat in FEATURES_NUM:           
+    for feat in FEATURES_NUM:       
         # Check for low range e.g. percentage (fraction) feature between 0 and 1 or it's a "percentage" type
         if (data[feat].max()-data[feat].min() <= 1) or ('percent' in feat.split('_')):
-            
+
             # For "open" related percentage, apply linear spacing, with 0 and 1 having their own bins
             if 'open' in feat.split('_'):
                 bins = np.linspace(start=0, stop=1 ,num=6)
@@ -39,7 +39,7 @@ def customer_bin(data, FEATURES_NUM):
                 if data[feat].min() < 0:
                     bins = np.insert(bins, 0, round(data[feat].min()-1))
                 data[f"{feat}_binned"] = pd.cut(data[feat], bins)
-            
+
             # For "click" related percentage, apply geometric spacing, with 0 and 1 having their own bins
             elif 'click' in feat.split('_'):
                 bins = np.geomspace(start=0.01, stop=1, num=6)
@@ -55,22 +55,16 @@ def customer_bin(data, FEATURES_NUM):
                 if data[feat].min() < 0:
                     bins = np.insert(bins, 0, round(data[feat].min()-1))
                 data[f"{feat}_binned"] = pd.cut(data[feat], bins)
-                
+
             # For anything else, use custom binning
             else:
                 data[f"{feat}_binned"] = data[feat].apply(custom_bin)
                 data[f"{feat}_binned"] = data[f"{feat}_binned"].astype('category')
-    
-        # Put values in bins for heavily skewed wide range feature 0 to 100+
-        # Zero (0) has its own bin
+
         else:
             
             # Define correction factor
-            if data[feat].min() == 0:
-                correction = 1
-            else:
-                correction = 2
-            
+            correction = 1 if data[feat].min() == 0 else 2
             # Create uneven bins
             cnt, bins = np.histogram(np.log(data[feat]+correction), bins='doane')
             bins = np.unique(np.ceil(bins))

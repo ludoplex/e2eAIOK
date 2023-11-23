@@ -69,8 +69,13 @@ def collapse_by_hist(df, item_info_df, proc, output_name, min_num_hist = 0, max_
 def get_dict_for_asin(df, proc):
     dict_dfs = []
     dict_names = ['asin']
-    dict_dfs = [{'col_name': name, 'dict': df.select(spk_func.col(name).alias('dict_col'))} for name in dict_names]
-    return dict_dfs
+    return [
+        {
+            'col_name': name,
+            'dict': df.select(spk_func.col(name).alias('dict_col')),
+        }
+        for name in dict_names
+    ]
 
 
 def add_negative_sample(df, item_info_df, dict_dfs, proc, output_name):
@@ -117,15 +122,15 @@ def categorify_dien_data(df, user_df, asin_df, cat_df, asin_cat_df, proc, output
     df = df.select('pos', 'reviewer_id', 'asin', 'category', 'hist_asin', 'hist_category',
                    'noclk_hist_asin', f.expr('noclk_hist_asin as noclk_hist_category'))
 
-    dict_dfs = []
-    dict_dfs.append({'col_name': 'reviewer_id', 'dict': user_df})
-    dict_dfs.append({'col_name': 'asin', 'dict': asin_df})
-    dict_dfs.append({'col_name': 'category', 'dict': cat_df})
-    dict_dfs.append({'col_name': 'hist_asin', 'dict': asin_df})
-    dict_dfs.append({'col_name': 'hist_category', 'dict': cat_df})
-    dict_dfs.append({'col_name': 'noclk_hist_asin', 'dict': asin_df})
-    dict_dfs.append({'col_name': 'noclk_hist_category', 'dict': asin_cat_df})
-
+    dict_dfs = [
+        {'col_name': 'reviewer_id', 'dict': user_df},
+        {'col_name': 'asin', 'dict': asin_df},
+        {'col_name': 'category', 'dict': cat_df},
+        {'col_name': 'hist_asin', 'dict': asin_df},
+        {'col_name': 'hist_category', 'dict': cat_df},
+        {'col_name': 'noclk_hist_asin', 'dict': asin_df},
+        {'col_name': 'noclk_hist_category', 'dict': asin_cat_df},
+    ]
     op_categorify = Categorify(['reviewer_id', 'asin', 'category'], dict_dfs=dict_dfs)
     op_categorify_2 = Categorify(['hist_asin', 'hist_category'], dict_dfs=dict_dfs, doSplit=True, sep='\x02')
     op_categorify_3 = Categorify(['noclk_hist_asin', 'noclk_hist_category'], dict_dfs=dict_dfs, doSplit=True, multiLevelSplit=True, multiLevelSep=['|'])
@@ -141,10 +146,9 @@ def categorify_dien_data(df, user_df, asin_df, cat_df, asin_cat_df, proc, output
 
 def load_voc(proc, output_name):
     import pickle as pkl #nosec
-    with open("/home/xxx/dien/" + f'/{output_name}.pkl', "rb") as f:
-        voc = dict((key, value) for (key,value) in pkl.load(f).items()) #nosec
-    dict_df = convert_to_spark_df(voc, proc.spark)
-    return dict_df
+    with open(f'/home/xxx/dien//{output_name}.pkl', "rb") as f:
+        voc = dict(pkl.load(f).items())
+    return convert_to_spark_df(voc, proc.spark)
 
 
 def load_uid_voc(proc):
@@ -209,7 +213,7 @@ def save_to_local_splitByUser(df, proc, output_name):
             user_map[items[1]] = []
         user_map[items[1]].append(items)
     with open(TARGET_PATH + f"/{output_name}", 'w') as fp:
-        for user, r in user_map.items():
+        for r in user_map.values():
             positive_sorted = sorted(r, key=lambda x: x[0])
             for items in positive_sorted:
                 print('\t'.join([str(x) for x in items]), file=fp)
@@ -223,16 +227,14 @@ def result_rename_or_convert(fpath, output_name):
     source_path_dict = list_dir(fpath, False)
     fix = "-spark"
     tgt_path = f"{TARGET_PATH}/{output_name}"
-    idx = 0
     if len(source_path_dict[output_name + fix]) == 1:
         file_name = source_path_dict[output_name + fix][0]
         shutil.copy(file_name, f"{tgt_path}")
     else:
-        for file_name in source_path_dict[output_name + fix]:
+        for idx, file_name in enumerate(source_path_dict[output_name + fix]):
             #print(f"result renamed from {file_name} to {tgt_path}_{idx}")
             shutil.copy(file_name, f"{tgt_path}_{idx}")
             shutil.rmtree(file_name, ignore_errors=True)
-            idx += 1
 
 def main(option = '--advanced'):
     if option == '--basic':
@@ -272,13 +274,23 @@ def main(option = '--advanced'):
     # ===============================================
     # Data ingestion
     t0 = timer()
-    reviews_info_df = process_reviews(spark, "%s/%s/raw_data/reviews_Books.json" % (path_prefix, original_folder), proc, "reviews-info")
+    reviews_info_df = process_reviews(
+        spark,
+        f"{path_prefix}/{original_folder}/raw_data/reviews_Books.json",
+        proc,
+        "reviews-info",
+    )
     #reviews_info_df.repartition(1).write.format("csv").option('sep', '\t').mode("overwrite").save("%s/%s/j2c_test/reviews-info-spark" % (path_prefix, original_folder))
     t1 = timer()
     print(f"parse reviews-info with spark took {(t1 - t0)} secs")
 
     t0 = timer()
-    item_info_df = process_meta(spark, '%s/%s/raw_data/meta_Books.json' % (path_prefix, original_folder), proc, "item-info")
+    item_info_df = process_meta(
+        spark,
+        f'{path_prefix}/{original_folder}/raw_data/meta_Books.json',
+        proc,
+        "item-info",
+    )
     #item_info_df.repartition(1).write.format("csv").option('sep', '\t').mode("overwrite").save("%s/%s/j2c_test/item-info-spark" % (path_prefix, original_folder))
     t1 = timer()
     print(f"parse item-info with spark took {(t1 - t0)} secs")

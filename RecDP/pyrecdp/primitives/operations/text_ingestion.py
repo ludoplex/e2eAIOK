@@ -46,12 +46,15 @@ class LangchainVectorStore(VectorStore):
         import_faiss()
         text_embeddings: List[Tuple[str, List[float]]] = []
         if isinstance(ds, Dataset):
-            for row in ds.iter_rows():
-                text_embeddings.append((row[self.text_column], row[self.embeddings_column]))
+            text_embeddings.extend(
+                (row[self.text_column], row[self.embeddings_column])
+                for row in ds.iter_rows()
+            )
         else:
-            for row in ds.collect():
-                text_embeddings.append((row[self.text_column], row[self.embeddings_column]))
-
+            text_embeddings.extend(
+                (row[self.text_column], row[self.embeddings_column])
+                for row in ds.collect()
+            )
         from langchain.vectorstores.faiss import FAISS
         db = FAISS.from_embeddings(text_embeddings, embedding=self.text_embeddings.underlying_embeddings())
         if "output_dir" not in self.vector_store_args:
@@ -177,7 +180,9 @@ class BaseDocumentIngestion(BaseLLMOperation, ABC):
                 pdf[self.embeddings_column] = self.text_embeddings.embed_documents(pdf[self.text_column])
                 yield pdf
 
-        fields = [field for field in df.schema] + [T.StructField(self.embeddings_column, T.ArrayType(T.FloatType()))]
+        fields = list(df.schema) + [
+            T.StructField(self.embeddings_column, T.ArrayType(T.FloatType()))
+        ]
         df = df.mapInPandas(batch_embedding, T.StructType(fields))
         self.vector_store.persist(df)
         return df
@@ -215,16 +220,18 @@ class DocumentIngestion(BaseDocumentIngestion, TextEmbeddings):
             """
 
         if vector_store is None:
-            raise ValueError(f"vector_store is required!")
+            raise ValueError("vector_store is required!")
 
         if not isinstance(vector_store, str):
-            raise ValueError(f"vector_store must be a name of vector store provided in langchain!")
+            raise ValueError(
+                "vector_store must be a name of vector store provided in langchain!"
+            )
 
         if embeddings is None:
-            raise ValueError(f"langchain embeddings is required!")
+            raise ValueError("langchain embeddings is required!")
 
         if not isinstance(embeddings, str):
-            raise ValueError(f"embeddings must be a class name of langchain embedding!")
+            raise ValueError("embeddings must be a class name of langchain embedding!")
 
         self.vector_store = vector_store
         self.vector_store_args = vector_store_args or {}

@@ -13,21 +13,21 @@ distributed_nodes = 4
 if __name__ == "__main__":
     ######## Load data
     t1 = time.time()
-    test = pd.read_parquet(f'{data_path}/stage12_test')  
+    test = pd.read_parquet(f'{data_path}/stage12_test')
     print(test.shape)
     print(f"load data took {time.time() - t1} s")
 
     ######## split data
     t1 = time.time()
-    indexs = [i for i in range(distributed_nodes)]
-    step = int(len(test)/distributed_nodes)
+    indexs = list(range(distributed_nodes))
+    step = len(test) // distributed_nodes
     tests = []
     for i in range(distributed_nodes):
         if i<distributed_nodes-1:
             tests.append(test[i*step:(i+1)*step])
         else:
             tests.append(test[i*step:])
-        
+
     for i in range(len(tests)):
         tests[i].to_parquet(f"{path}/data/stage12_test_{i}.parquet")
 

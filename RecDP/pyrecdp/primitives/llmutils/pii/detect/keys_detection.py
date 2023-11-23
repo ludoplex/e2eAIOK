@@ -64,7 +64,7 @@ def is_hash(content, value):
         return False
     lines = content[:content.index(value)].splitlines()
     target_line = lines[-1]
-    if len(value) in [32, 40, 64]:
+    if len(value) in {32, 40, 64}:
         # if "sha" or "md5" are in content:
         keywords = ["sha", "md5", "hash", "byte"]
         if any(x in target_line.lower() for x in keywords):
@@ -99,19 +99,17 @@ def get_indexes(text, value):
             string = text[new_start:]
         except ValueError:
             break
-    indexes = [(x, x + len(value)) for x in indexes]
-    return indexes
+    return [(x, x + len(value)) for x in indexes]
 
 
 def scan_secrets(line: str):
     from detect_secrets.core.scan import _process_line_based_plugins
 
     lines = line.splitlines(keepends=True)
-    for secret in _process_line_based_plugins(
-            lines=list(enumerate(lines, start=1)),
-            filename="Adhoc String",
-    ):
-        yield secret
+    yield from _process_line_based_plugins(
+        lines=list(enumerate(lines, start=1)),
+        filename="Adhoc String",
+    )
 
 
 
@@ -136,20 +134,20 @@ def detect_keys(content):
     from detect_secrets.settings import transient_settings
 
     with transient_settings(
-            {"plugins_used": plugins, "filters_used": filters}
-    ) as settings:
+                {"plugins_used": plugins, "filters_used": filters}
+        ) as settings:
         matches = []
         for secret in scan_secrets(content):
             if is_hash(content, secret.secret_value) or file_has_hashes(content):
                 continue
             indexes = get_indexes(content, secret.secret_value)
-            for start, end in indexes:
-                matches.append(
-                    {
-                        "tag": "KEY",
-                        "value": secret.secret_value,
-                        "start": start,
-                        "end": end,
-                    }
-                )
+            matches.extend(
+                {
+                    "tag": "KEY",
+                    "value": secret.secret_value,
+                    "start": start,
+                    "end": end,
+                }
+                for start, end in indexes
+            )
         return matches

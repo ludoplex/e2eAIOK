@@ -33,12 +33,9 @@ def clean_latex(text):
     # TODO: macros that take arguments are not supported yet
     arg_macros = {}
 
-    cleaned_text = _clean_text_file(
-        file_content=text,
-        arg_macros=arg_macros,
-        non_arg_macros=non_arg_macros
+    return _clean_text_file(
+        file_content=text, arg_macros=arg_macros, non_arg_macros=non_arg_macros
     )
-    return cleaned_text
 
 
 def clean_codes(text):
@@ -62,11 +59,7 @@ def _clean_text_file(
 
     @return: cleaned tex file as a string
     """
-    # find the first occurence of a \section-like header and replace everything
-    # before it with an empty string. This matches the following pattern:
-    #   \<section-type>[optional-args]{name}
-    pattern = r"^(.*?)("
-    pattern += r"\\\bchapter\b\*?(?:\[(.*?)\])?\{(.*?)\}|"
+    pattern = r"^(.*?)(" + r"\\\bchapter\b\*?(?:\[(.*?)\])?\{(.*?)\}|"
     pattern += r"\\\bpart\b\*?(?:\[(.*?)\])?\{(.*?)\}|"
     pattern += r"\\\bsection\b\*?(?:\[(.*?)\])?\{(.*?)\}|"
     pattern += r"\\\bsubsection\b\*?(?:\[(.*?)\])?\{(.*?)\}|"
@@ -105,10 +98,7 @@ def _clean_text_file(
         flags=re.MULTILINE
     )
 
-    # find the first occurence of either \appendix or \bibliography and
-    # replace everything after it with an empty string
-    pattern = r"("
-    pattern += r"\\appendix|"
+    pattern = r"(" + r"\\appendix|"
     pattern += r"\\begin\{references\}|"
     pattern += r"\\begin\{REFERENCES\}|"
     pattern += r"\\begin\{thebibliography\}|"
@@ -125,13 +115,9 @@ def _clean_text_file(
     # inline-expand all non-arg macros
     for macro_name, macro_value in non_arg_macros.items():
         file_content = re.sub(
-            # make pattern grouped to make sure that the macro is not part
-            # of a longer alphanumeric word
-            pattern=r"(" + macro_name + r")" + r"([^a-zA-Z0-9])",
-            # replace the macro with its value and add back the character that
-            # was matched after the macro
+            pattern=f"({macro_name})([^a-zA-Z0-9])",
             repl=macro_value + r"\2",
-            string=file_content
+            string=file_content,
         )
 
     # inline-expand all macros that use args
@@ -189,8 +175,7 @@ def _build_non_arg_macros_dict(file_content: str) -> Dict[str, str]:
 
 
 def _clean_copyright_comments(text: str):
-    r = PAT.search(text)
-    if r:
+    if r := PAT.search(text):
         # found one, now see if it contains "copyright", if so strip it
         span = r.span()
         sub = text[span[0]:span[1]]
@@ -205,12 +190,12 @@ def _clean_copyright_comments(text: str):
 
     # Greedy replace any file that begins with comment block, most
     # are copyright headers
-    for k in range(len(lines)):
+    for line in lines:
         if (
-                lines[k].startswith("//") or
-                lines[k].startswith("#") or
-                lines[k].startswith("--") or
-                not lines[k]
+            line.startswith("//")
+            or line.startswith("#")
+            or line.startswith("--")
+            or not line
         ):
             skip = skip + 1
         else:
@@ -251,10 +236,7 @@ class TextFix(BaseLLMOperation):
         self.support_ray = True
 
     def process_rayds(self, ds: Dataset) -> Dataset:
-        if self.inplace:
-            new_name = self.text_key
-        else:
-            new_name = 'fixed_text'
+        new_name = self.text_key if self.inplace else 'fixed_text'
         if self.actual_func is None:
             self.actual_func = get_fixer_by_type(self.text_type)
         return ds.map(lambda x: self.process_row(x, self.text_key, new_name, self.actual_func))
@@ -262,10 +244,7 @@ class TextFix(BaseLLMOperation):
     def process_spark(self, spark, spark_df: DataFrame) -> DataFrame:
         import pyspark.sql.functions as F
         fix_by_type_udf = F.udf(get_fixer_by_type(self.text_type))
-        if self.inplace:
-            new_name = self.text_key
-        else:
-            new_name = 'fixed_text'
+        new_name = self.text_key if self.inplace else 'fixed_text'
         return spark_df.withColumn(new_name, fix_by_type_udf(F.col(self.text_key)))
 
 

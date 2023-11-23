@@ -49,7 +49,10 @@ def main():
 
     #.config("spark.sql.files.maxPartitionBytes", "162MB")\
     SO_FILE = {'question': 'Questions.csv', 'answer': 'Answers.csv'}
-    file_names = dict((key, os.path.join(current_local_path, data_folder, filename)) for key, filename in SO_FILE.items())
+    file_names = {
+        key: os.path.join(current_local_path, data_folder, filename)
+        for key, filename in SO_FILE.items()
+    }
 
     proc = DataProcessor(spark, path_prefix, current_path=current_path, shuffle_disk_capacity="1200GB", spark_mode='local')
 
@@ -59,7 +62,7 @@ def main():
     answers_pdf = pd.read_csv(file_names['answer'], encoding="ISO-8859-1")
     answers_pdf.drop(columns=['OwnerUserId', 'CreationDate', 'Id'], inplace=True)
     answer_df = spark.createDataFrame(answers_pdf)
-    answer_df = proc.transform(answer_df, name="answer.parquet")        
+    answer_df = proc.transform(answer_df, name="answer.parquet")
     t1 = timer()
     print(f"Load Answer.csv took {(t1 - t0)} secs")
 
@@ -81,7 +84,7 @@ def main():
     questions_pdf = pd.read_csv(file_names['question'], encoding="ISO-8859-1")
     questions_pdf.drop(columns=['OwnerUserId', 'CreationDate', 'ClosedDate', 'Score'], inplace=True)
     question_df = spark.createDataFrame(questions_pdf)
-    question_df = proc.transform(question_df, name="question.parquet")        
+    question_df = proc.transform(question_df, name="question.parquet")
     t1 = timer()
     print(f"Load Question.csv took {(t1 - t0)} secs")
 
@@ -138,7 +141,7 @@ def main():
     total_len = question_df.count()
     print('generating embeddings len = %d ...' % (total_len))
     t0 = timer()
-    print(f"Start to do EmbeddingRetriever embed_queries ...")
+    print("Start to do EmbeddingRetriever embed_queries ...")
     question_df = question_df.withColumn("question_emb", pandas_udf_embed_queries(f.struct(f.col("text"), f.col("question-body"), f.col("answer"))))
     question_df = proc.transform(question_df, name = "question_with_embed.parquet")
     question_df.show()

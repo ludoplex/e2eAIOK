@@ -15,9 +15,9 @@ class RelationalFeatureGenerator(super_class):
     def fit_prepare(self, pipeline, children, max_idx):
         self.pipeline_start_idx = max_idx
         self.pipeline_main_idx = pipeline[children[0]].idx
-        self.others = dict((i, pipeline[i].output) for i in children[1:])
+        self.others = {i: pipeline[i].output for i in children[1:]}
         self.candidates = self.others.copy()
-        
+
         pa_schema = pipeline[children[0]].output
         stop = False
         while not stop:
@@ -26,7 +26,7 @@ class RelationalFeatureGenerator(super_class):
                 pa_schema = self.dry_run_merge_tables(pa_schema, related_tables)
             else:
                 stop = True
-            if len(self.candidates) == 0:
+            if not self.candidates:
                 stop = True
         pipeline.update(self.pipeline)
         return pipeline, self.pipeline_main_idx, self.pipeline_start_idx
@@ -63,7 +63,7 @@ class RelationalFeatureGenerator(super_class):
                     src_schema[idx].name = cur_name
             # update pipeline
             left_idx = self.pipeline_main_idx
-            if len(rename_cols) > 0:
+            if rename_cols:
                 self.pipeline_start_idx += 1
                 cur_idx = self.pipeline_start_idx
                 self.pipeline[cur_idx] = Operation(cur_idx, [child_idx], src_schema, 'rename', rename_cols)
@@ -72,14 +72,14 @@ class RelationalFeatureGenerator(super_class):
                 right_idx = child_idx
             # merge to tgt
             [tgt_schema.append(n) for n in src_schema]
-            
+
             # add merge to pipeline
             self.pipeline_start_idx += 1
             cur_idx = self.pipeline_start_idx
             self.pipeline[cur_idx] = Operation(cur_idx, [left_idx, right_idx], tgt_schema, 'merge', {'on': on, 'how': 'left'})
             self.pipeline_main_idx = cur_idx
             return tgt_schema
-                
+
         for t_name, t_primary_keys in related_tables.items():
             target_table_schema = _dry_merge(t_name, t_primary_keys, target_table_schema, self.others[t_name])
         return target_table_schema

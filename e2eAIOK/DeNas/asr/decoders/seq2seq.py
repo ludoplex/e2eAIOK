@@ -286,10 +286,7 @@ class S2SBeamSearcher(S2SBaseSearcher):
         """
         hyps_len = [len(lst) for lst in hyps]
         beam_size = [self.beam_size for _ in range(len(hyps_len))]
-        if hyps_len == beam_size:
-            return True
-        else:
-            return False
+        return hyps_len == beam_size
 
     def _check_attn_shift(self, attn, prev_attn_peak):
         """This method checks whether attention shift is more than attn_shift.
@@ -334,8 +331,7 @@ class S2SBeamSearcher(S2SBaseSearcher):
         """
         max_probs, _ = torch.max(log_probs, dim=-1)
         eos_probs = log_probs[:, self.eos_index]
-        cond = eos_probs > (self.eos_threshold * max_probs)
-        return cond
+        return eos_probs > (self.eos_threshold * max_probs)
 
     def _update_hyp_and_scores(
         self,
@@ -716,8 +712,7 @@ class S2SBeamSearcher(S2SBaseSearcher):
     def ctc_forward_step(self, x):
         """Applies a ctc step during bramsearch."""
         logits = self.ctc_fc(x)
-        log_probs = self.softmax(logits)
-        return log_probs
+        return self.softmax(logits)
 
     def permute_mem(self, memory, index):
         """This method permutes the seq2seq model memory
@@ -916,14 +911,12 @@ def filter_seq2seq_output(string_pred, eos_id=-1):
     list
         The output predicted by seq2seq model.
     """
-    if isinstance(string_pred, list):
-        try:
-            eos_index = next(
-                i for i, v in enumerate(string_pred) if v == eos_id
-            )
-        except StopIteration:
-            eos_index = len(string_pred)
-        string_out = string_pred[:eos_index]
-    else:
+    if not isinstance(string_pred, list):
         raise ValueError("The input must be a list.")
-    return string_out
+    try:
+        eos_index = next(
+            i for i, v in enumerate(string_pred) if v == eos_id
+        )
+    except StopIteration:
+        eos_index = len(string_pred)
+    return string_pred[:eos_index]

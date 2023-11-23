@@ -20,14 +20,13 @@ class Graph:
             self.dst_list.append(u)
 
     def find_last_node(self):
-        last_node_candidates = []
-        for n in self.nodes:
-            if n in self.src_list and n not in self.dst_list:
-                last_node_candidates.append(n)
+        last_node_candidates = [
+            n for n in self.nodes if n in self.src_list and n not in self.dst_list
+        ]
         if len(last_node_candidates) == 1:
             return last_node_candidates[-1]
-        elif len(last_node_candidates) == 0:
-            raise ValueError(f"Found no leaf node in pipeline DAG")
+        elif not last_node_candidates:
+            raise ValueError("Found no leaf node in pipeline DAG")
         else:
             raise NotImplementedError(f"Found more than one node as leaf {last_node_candidates}, not supported yet")
         
@@ -72,7 +71,7 @@ class Graph:
 class DiGraph(dict):
     def get_max_idx(self):
         id_list = list(self.keys())
-        return max(id_list) if len(id_list) > 0 else -1
+        return max(id_list, default=-1)
     
     def convert_to_node_chain(self):
         graph = Graph()
@@ -80,21 +79,17 @@ class DiGraph(dict):
 
         for node_id, config in self.items():
             if config.children:
-                for src_id in config.children:
-                    edges.append([src_id, node_id])
-        
-        if len(edges):
-            for edge in edges:
-                graph.addEdge(*edge)
-                
-            ret = graph.chain()
-        else:
-            ret = list(self.keys())
-        return ret
+                edges.extend([src_id, node_id] for src_id in config.children)
+        if not len(edges):
+            return list(self.keys())
+        for edge in edges:
+            graph.addEdge(*edge)
+
+        return graph.chain()
 
     def json_dump(self):
         import json
-        to_dump = dict((node_id, op.dump()) for node_id, op in self.items())
+        to_dump = {node_id: op.dump() for node_id, op in self.items()}
         return json.dumps(to_dump, indent=4)
 
     def copy(self):

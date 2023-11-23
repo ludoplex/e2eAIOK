@@ -18,8 +18,7 @@ class BaseFilter(BaseLLMOperation):
         if self.inplace:
             # remove unwanted text row inplace
             compute_func = self.get_compute_func()
-            filtered_ds = ds.filter(lambda x: compute_func(x[self.text_key]))
-            return filtered_ds
+            return ds.filter(lambda x: compute_func(x[self.text_key]))
         else:
             raise NotImplementedError(f"We only support inplace modification for {self.__class__.__name__}.")
 

@@ -151,15 +151,7 @@ class SpecAugment(torch.nn.Module):
         mask = (mask_pos <= arange) * (arange < (mask_pos + mask_len))
         mask = mask.any(dim=1)
 
-        if dim == 1:
-            mask = mask.unsqueeze(2)
-        else:
-            mask = mask.unsqueeze(1)
-
-        if self.replace_with_zero:
-            val = 0.0
-        else:
-            val = x.mean()
-
+        mask = mask.unsqueeze(2) if dim == 1 else mask.unsqueeze(1)
+        val = 0.0 if self.replace_with_zero else x.mean()
         x = x.masked_fill_(mask, val)
         return x.view(*original_size)

@@ -120,11 +120,11 @@ def main():
     from typing import Iterator
     @pandas_udf(ArrayType(DoubleType()))
     def pandas_udf_embed_queries(iterator: Iterator[pd.DataFrame]) -> Iterator[pd.Series]:
-        print(f"start launcu_milvus")
+        print("start launcu_milvus")
         launch_milvus()
         document_store = MilvusDocumentStore(host="localhost", username="", password="",
                                                 index="flat")
-        print(f"start create retriever")
+        print("start create retriever")
         retriever = DensePassageRetriever(document_store=document_store,
                                     query_embedding_model="facebook/dpr-question_encoder-single-nq-base",
                                     passage_embedding_model="facebook/dpr-ctx_encoder-single-nq-base",
@@ -137,7 +137,7 @@ def main():
             yield df
 
     t0 = timer()
-    print(f"Start to do EmbeddingRetriever embed_queries ...")
+    print("Start to do EmbeddingRetriever embed_queries ...")
     debug_df = pandas_udf_embed_queries(f.struct(f.col("text"), f.col("question-body"), f.col("answer")))
     t1 = timer()
     print(f'EmbeddingRetriever embed_queries took {(t1 - t0)} secs')

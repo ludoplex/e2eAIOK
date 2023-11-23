@@ -65,30 +65,18 @@ class RecsysSchema:
         ]
 
     def toStructType(self):
-        str_fields1 = [StructField('%s' % i, StringType())
-                       for i in self.string_cols1]
-        int_fields1 = [StructField('%s' % i, IntegerType())
-                       for i in self.int_cols1]
-        str_fields2 = [StructField('%s' % i, StringType())
-                       for i in self.string_cols2]
-        int_fields2 = [StructField('%s' % i, IntegerType())
-                       for i in self.int_cols2]
-        bool_fields1 = [StructField('%s' % i, BooleanType())
-                        for i in self.bool_cols1]
-        int_fields3 = [StructField('%s' % i, IntegerType())
-                       for i in self.int_cols3]
-        str_fields3 = [StructField('%s' % i, StringType())
-                       for i in self.string_cols3]
-        int_fields4 = [StructField('%s' % i, IntegerType())
-                       for i in self.int_cols4]
-        bool_fields2 = [StructField('%s' % i, BooleanType())
-                        for i in self.bool_cols2]
-        int_fields5 = [StructField('%s' % i, IntegerType())
-                       for i in self.int_cols5]
-        bool_fields3 = [StructField('%s' % i, BooleanType())
-                        for i in self.bool_cols3]
-        float_fields = [StructField('%s' % i, FloatType())
-                        for i in self.float_cols]
+        str_fields1 = [StructField(f'{i}', StringType()) for i in self.string_cols1]
+        int_fields1 = [StructField(f'{i}', IntegerType()) for i in self.int_cols1]
+        str_fields2 = [StructField(f'{i}', StringType()) for i in self.string_cols2]
+        int_fields2 = [StructField(f'{i}', IntegerType()) for i in self.int_cols2]
+        bool_fields1 = [StructField(f'{i}', BooleanType()) for i in self.bool_cols1]
+        int_fields3 = [StructField(f'{i}', IntegerType()) for i in self.int_cols3]
+        str_fields3 = [StructField(f'{i}', StringType()) for i in self.string_cols3]
+        int_fields4 = [StructField(f'{i}', IntegerType()) for i in self.int_cols4]
+        bool_fields2 = [StructField(f'{i}', BooleanType()) for i in self.bool_cols2]
+        int_fields5 = [StructField(f'{i}', IntegerType()) for i in self.int_cols5]
+        bool_fields3 = [StructField(f'{i}', BooleanType()) for i in self.bool_cols3]
+        float_fields = [StructField(f'{i}', FloatType()) for i in self.float_cols]
         return StructType(
             str_fields1
             + int_fields1

@@ -25,10 +25,8 @@ class AverageLineLengthFilter(BaseFilter):
         def compute(text) -> bool:
             lines = text.splitlines()
             avg_line_length = len(text) / len(lines) if len(lines) != 0 else 0.0
-            if min_len <= avg_line_length <= max_len:
-                return True
-            else:
-                return False
+            return min_len <= avg_line_length <= max_len
+
         return compute
 
 

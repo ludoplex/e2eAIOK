@@ -57,11 +57,7 @@ class DocumentSplit(BaseLLMOperation, ABC):
         self.text_key = text_key
         self.support_ray = True
         self.support_spark = True
-        if inplace:
-            self.split_text_column = self.text_key
-        else:
-            self.split_text_column = 'split_text'
-
+        self.split_text_column = self.text_key if inplace else 'split_text'
         self.text_split_func = prepare_text_split(self.text_splitter, **self.text_splitter_args)
 
     def process_rayds(self, ds: Dataset = None):

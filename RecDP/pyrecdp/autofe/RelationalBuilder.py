@@ -17,9 +17,8 @@ class RelationalBuilder(TabularPipeline):
         # If we provided multiple datasets in this workload
         self.generators.append([cls() for cls in relation_builder_list])
         self.data_profilers = [cls() for cls in feature_infer_list]
-        idx = 1
         self.children = [0]
-        for table_name, table in self.supplementary.items():
+        for idx, (table_name, table) in enumerate(self.supplementary.items(), start=1):
             if isinstance(table, str):
                 data = sample_read(table)
                 self.pipeline[idx] = Operation(
@@ -28,7 +27,6 @@ class RelationalBuilder(TabularPipeline):
                 self.pipeline[idx] = Operation(
                     idx, None, output = DataFrameSchema(table), op = 'DataFrame', config = table_name)
             self.children.append(idx)
-            idx += 1
         self.fit_analyze()
 
     def fit_analyze(self, *args, **kwargs):
@@ -36,10 +34,7 @@ class RelationalBuilder(TabularPipeline):
         max_id = max(self.children)
         for child in self.children:
             op = self.pipeline[child]
-            if op.op == 'DataLoader':
-                table = op.config['table_name']
-            else:
-                table = op.config
+            table = op.config['table_name'] if op.op == 'DataLoader' else op.config
             X = DataFrameAPI().instiate(self.dataset[table])
             sampled_data = X.may_sample()
             for profiler in self.data_profilers:

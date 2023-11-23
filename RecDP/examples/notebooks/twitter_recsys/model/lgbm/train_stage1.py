@@ -15,8 +15,7 @@ def compute_AP(pred, gt):
 
 def calculate_ctr(gt):
     positive = len([x for x in gt if x == 1])
-    ctr = positive/float(len(gt))
-    return ctr
+    return positive/float(len(gt))
 
 def compute_rce_fast(pred, gt):
     cross_entropy = log_loss(gt, pred)
@@ -53,11 +52,12 @@ if __name__ == "__main__":
 
     ######## Feature list for each target
     label_names = ['reply_timestamp', 'retweet_timestamp', 'retweet_with_comment_timestamp', 'like_timestamp']
-    feature_list = []
-    feature_list.append(stage1_reply_features)
-    feature_list.append(stage1_retweet_features)
-    feature_list.append(stage1_comment_features)
-    feature_list.append(stage1_like_features)
+    feature_list = [
+        stage1_reply_features,
+        stage1_retweet_features,
+        stage1_comment_features,
+        stage1_like_features,
+    ]
     for i in range(4):
         print(len(feature_list[i]))
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         params_tmp['seed'] = 1
         model = lgb.train(params_tmp,train_set=trainD,valid_sets=validationD,categorical_feature=set([]))
         model.save_model(filename = f"{model_save_path}/lgbm_{name}_stage1.txt")
-        
+
         print('Predicting...')
         oof[:, numlabel] += model.predict(X_valid)
 
@@ -151,9 +151,9 @@ if __name__ == "__main__":
     ######## Merge prediction to data and save
     for i in range(4):
         valid[f"pred_{label_names[i]}"] = oof[:,i]
-    
+
     valid[["tweet_id","engaging_user_id",f"pred_{label_names[0]}",f"pred_{label_names[1]}",f"pred_{label_names[2]}",f"pred_{label_names[3]}"]].to_csv(f"{pred_save_path}/lgbm_pred_stage1.csv",index=0)
-    
+
     ######## Evaluate the performance
     txts = ''
     sumap = 0
@@ -171,6 +171,6 @@ if __name__ == "__main__":
     print(txts)
     print("AVG AP: ", sumap/4.)
     print("AVG RCE: ", sumrce/4.)
-    
+
     print('This notebook took %.1f seconds'%(time.time()-very_start))
 
