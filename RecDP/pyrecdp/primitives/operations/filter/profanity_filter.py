@@ -22,10 +22,8 @@ class ProfanityFilter(BaseFilter):
 
         def compute(text) -> bool:
             scores = predict_func([text])
-            if scores[0] <= threshold:
-                return True
-            else:
-                return False
+            return scores[0] <= threshold
+
         return compute
 
 

@@ -116,7 +116,7 @@ def prepare_librispeech(
 
     # Merging csv file if needed
     if merge_lst and merge_name is not None:
-        merge_files = [split_libri + ".csv" for split_libri in merge_lst]
+        merge_files = [f"{split_libri}.csv" for split_libri in merge_lst]
         merge_csvs(
             data_folder=save_folder, csv_lst=merge_files, merged_csv=merge_name,
         )
@@ -146,14 +146,12 @@ def create_lexicon_and_oov_csv(all_texts, data_folder, save_folder):
     -------
     None
     """
-    # If the lexicon file does not exist, download it
-    lexicon_url = "http://www.openslr.org/resources/11/librispeech-lexicon.txt"
     lexicon_path = os.path.join(save_folder, "librispeech-lexicon.txt")
 
     if not os.path.isfile(lexicon_path):
-        logger.info(
-            "Lexicon file not found. Downloading from %s." % lexicon_url
-        )
+        # If the lexicon file does not exist, download it
+        lexicon_url = "http://www.openslr.org/resources/11/librispeech-lexicon.txt"
+        logger.info(f"Lexicon file not found. Downloading from {lexicon_url}.")
         download_file(lexicon_url, lexicon_path)
 
     # Get list of all words in the transcripts
@@ -178,7 +176,7 @@ def create_lexicon_and_oov_csv(all_texts, data_folder, save_folder):
     with open(lexicon_csv_path, "w") as f:
         f.write(header)
         for idx in range(len(lexicon_words)):
-            separated_graphemes = [c for c in lexicon_words[idx]]
+            separated_graphemes = list(lexicon_words[idx])
             duration = len(separated_graphemes)
             graphemes = " ".join(separated_graphemes)
             pronunciation_no_numbers = [
@@ -189,7 +187,7 @@ def create_lexicon_and_oov_csv(all_texts, data_folder, save_folder):
                 ",".join([str(idx), str(duration), graphemes, phonemes]) + "\n"
             )
             f.write(line)
-    logger.info("Lexicon written to %s." % lexicon_csv_path)
+    logger.info(f"Lexicon written to {lexicon_csv_path}.")
 
     # Split lexicon.csv in train, validation, and test splits
     split_lexicon(save_folder, [98, 1, 1])
@@ -226,7 +224,7 @@ def split_lexicon(data_folder, split_ratio):
     header = "ID,duration,char,phn\n"
 
     tr_snts = int(0.01 * split_ratio[0] * len(lexicon_lines))
-    train_lines = [header] + lexicon_lines[0:tr_snts]
+    train_lines = [header] + lexicon_lines[:tr_snts]
     valid_snts = int(0.01 * split_ratio[1] * len(lexicon_lines))
     valid_lines = [header] + lexicon_lines[tr_snts : tr_snts + valid_snts]
     test_lines = [header] + lexicon_lines[tr_snts + valid_snts :]
@@ -264,10 +262,10 @@ def create_csv(
     None
     """
     # Setting path for the csv file
-    csv_file = os.path.join(save_folder, split + ".csv")
+    csv_file = os.path.join(save_folder, f"{split}.csv")
 
     # Preliminary prints
-    msg = "Creating csv lists in  %s..." % (csv_file)
+    msg = f"Creating csv lists in  {csv_file}..."
     logger.info(msg)
 
     csv_lines = [["ID", "duration", "wav", "spk_id", "transcript"]]
@@ -277,20 +275,14 @@ def create_csv(
     for wav_file in wav_lst:
 
         snt_id = wav_file.split("/")[-1].replace(".flac", "")
-        spk_id = "-".join(snt_id.split("-")[0:2])
+        spk_id = "-".join(snt_id.split("-")[:2])
         wrds = text_dict[snt_id]
 
         signal, fs = torchaudio.load(wav_file)
         signal = signal.squeeze(0)
         duration = signal.shape[0] / SAMPLERATE
 
-        csv_line = [
-            snt_id,
-            str(duration),
-            wav_file,
-            spk_id,
-            str(" ".join(wrds.split("_"))),
-        ]
+        csv_line = [snt_id, str(duration), wav_file, spk_id, " ".join(wrds.split("_"))]
 
         #  Appending current file to the csv_lines list
         csv_lines.append(csv_line)
@@ -309,7 +301,7 @@ def create_csv(
             csv_writer.writerow(line)
 
     # Final print
-    msg = "%s successfully created!" % (csv_file)
+    msg = f"{csv_file} successfully created!"
     logger.info(msg)
 
 
@@ -337,7 +329,7 @@ def skip(splits, save_folder, conf):
     skip = True
 
     for split in splits:
-        if not os.path.isfile(os.path.join(save_folder, split + ".csv")):
+        if not os.path.isfile(os.path.join(save_folder, f"{split}.csv")):
             skip = False
 
     #  Checking saved options
@@ -345,10 +337,7 @@ def skip(splits, save_folder, conf):
     if skip is True:
         if os.path.isfile(save_opt):
             opts_old = load_pkl(save_opt)
-            if opts_old == conf:
-                skip = True
-            else:
-                skip = False
+            skip = opts_old == conf
         else:
             skip = False
 
@@ -399,9 +388,9 @@ if __name__ == "__main__":
     train_splits = ["train-clean-100", "train-clean-360", "train-other-500"]
     dev_splits = ["dev-clean"]
     test_splits = ["test-clean", "test-other"]
-    train_csv = data_folder + "/train-clean-100.csv"
-    valid_csv = data_folder + "/dev-clean.csv"
-    test_csv = [data_folder + "/test-clean.csv", data_folder + "/test-other.csv"]
+    train_csv = f"{data_folder}/train-clean-100.csv"
+    valid_csv = f"{data_folder}/dev-clean.csv"
+    test_csv = [f"{data_folder}/test-clean.csv", f"{data_folder}/test-other.csv"]
 
     prepare_librispeech(data_folder=data_folder, save_folder=data_folder, tr_splits=train_splits, 
         dev_splits=dev_splits, te_splits=test_splits, merge_lst=train_splits, merge_name="train_csv")

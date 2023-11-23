@@ -56,17 +56,14 @@ class WordRepetitionFilter(BaseFilter):
             for word_ngram in word_ngrams:
                 freq_word_ngrams[word_ngram] = (
                         freq_word_ngrams.get(word_ngram, 0) + 1)
-            if len(freq_word_ngrams) == 0:
+            if not freq_word_ngrams:
                 word_rep_ratio = 0.0
             else:
                 freq_word_ngrams = list(freq_word_ngrams.values())
                 rep_more_than_one = [freq for freq in freq_word_ngrams if freq > 1]
                 word_rep_ratio = (sum(rep_more_than_one) /
                                   sum(freq_word_ngrams)) if sum(freq_word_ngrams) != 0 else 0.0
-            if min_ratio <= word_rep_ratio <= max_ratio:
-                return True
-            else:
-                return False
+            return min_ratio <= word_rep_ratio <= max_ratio
 
         return compute
 

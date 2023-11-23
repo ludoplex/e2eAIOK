@@ -73,11 +73,9 @@ class TypeConvertFeatureGenerator(FeaturetoolsBasedFeatureGenerator):
 
         for in_feat_name, op_clz in feature_in.items():
             is_useful = True
-            feature_in_out_map[in_feat_name] = []
-            feature_in_out_map[in_feat_name].append((in_feat_name, op_clz))
-        if is_useful:
-            cur_idx = max_idx + 1
-            pipeline[cur_idx] = Operation(cur_idx, children, pa_schema, op = "astype", config = feature_in_out_map)
-            return pipeline, cur_idx, cur_idx
-        else:
+            feature_in_out_map[in_feat_name] = [(in_feat_name, op_clz)]
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        pipeline[cur_idx] = Operation(cur_idx, children, pa_schema, op = "astype", config = feature_in_out_map)
+        return pipeline, cur_idx, cur_idx

@@ -12,10 +12,7 @@ class LightGBM(BaseEstimator):
     def get_func_train(self):
         label = self.config['label']
         objective = self.config['objective']
-        if 'metrics' in self.config:
-            metrics = self.config['metrics']
-        else:
-            metrics = None
+        metrics = self.config['metrics'] if 'metrics' in self.config else None
         train_test_splitter = self.get_splitter_func(self.config['train_test_splitter'])
         def train(df):
             train_sample, test_sample = train_test_splitter(df)
@@ -25,7 +22,7 @@ class LightGBM(BaseEstimator):
             x_val = test_sample.drop(columns=[label])
             y_val = test_sample[label].values
             lgbm_val = lgbm.Dataset(x_val, y_val)
-            
+
             params = {
                 'boosting_type':'gbdt',
                 'objective': objective,
@@ -41,9 +38,10 @@ class LightGBM(BaseEstimator):
 
             f_imp = model.feature_importance(importance_type='split').tolist()
             f_names = model.feature_name()
-            ret = dict((fn, fi) for fn, fi in zip(f_names, f_imp))
+            ret = dict(zip(f_names, f_imp))
             ret = sorted(ret.items(), key = lambda x:x[1], reverse = True)
             return ret
+
         return train
         
     def get_func_predict(self):

@@ -95,11 +95,11 @@ if __name__ == "__main__":
     parser.add_argument("--file_list", dest="file_list", type=str)
     parser.add_argument("-mp", dest="mp", type=int, default=-1)
     args = parser.parse_args()
-    
+
+    out_dir = args.out_dir
     # main controller
     if args.proc_id == -1:
         data_dir = args.data_dir
-        out_dir = args.out_dir
         in_type = args.in_type
         n_parallel = args.mp
         is_norm = args.is_norm
@@ -108,23 +108,20 @@ if __name__ == "__main__":
         if len(files) == 0:
             print("Detect 0 files, exit here")
             sys.exit(0)
-            
+
         with Timer(f"generate hash to {data_dir}"):
             convert(files, data_dir, in_type, n_parallel, out_dir)
     else:
         # sub process
         proc_id = args.proc_id
         in_dir = args.in_dir
-        out_dir = args.out_dir
         in_file_list = eval(args.file_list)
         in_type = args.in_type
-    
+
         out_type = 'parquet'
         if in_type != 'text':
             file_args = [(os.path.join(in_dir, f_name), os.path.join(out_dir, f"{f_name}.{out_type}"), f_name) for f_name in in_file_list]
-            with Timer(f"generate hash index with proc-id {proc_id}"):
-                convert_impl_mp(proc_id, in_type, file_args)
         else:
             file_args = [([os.path.join(in_dir, f_name) for f_name in in_file_list], os.path.join(out_dir, f"part_{proc_id}.parquet"), in_dir)]
-            with Timer(f"generate hash index with proc-id {proc_id}"):
-                convert_impl_mp(proc_id, in_type, file_args)
+        with Timer(f"generate hash index with proc-id {proc_id}"):
+            convert_impl_mp(proc_id, in_type, file_args)

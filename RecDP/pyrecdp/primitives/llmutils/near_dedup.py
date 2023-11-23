@@ -30,8 +30,7 @@ def generate_edges(nodes):
     return [(n, min_node) for n in nodes if n != min_node]
 
 def get_hash_ranges(B = None, R = None):
-    HASH_RANGES = [(i * R, (i + 1) * R) for i in range(B)]
-    return HASH_RANGES
+    return [(i * R, (i + 1) * R) for i in range(B)]
 
 def convert_to_slimPJ_fmt(first, second):
     return [f"{first} :: {second}"]
@@ -39,17 +38,16 @@ def convert_to_slimPJ_fmt(first, second):
 def minHashLSH_prepare(df, num_perm, ngram_size, B, R):
     HASH_RANGES = get_hash_ranges(B, R)
     print(f"num_bands is {B}, ranges is {R}")
-    
-    pipeline = (
-        df.rdd
-        .flatMap(
+
+    return (
+        df.rdd.flatMap(
             lambda x: generate_hash_values(
                 content=x[1],
                 idx=x[0],
                 num_perm=num_perm,
                 ngram_size=ngram_size,
                 hashranges=HASH_RANGES,
-                permutations = None
+                permutations=None,
             )
         )
         .groupBy(lambda x: (x[0], x[1]))
@@ -57,7 +55,6 @@ def minHashLSH_prepare(df, num_perm, ngram_size, B, R):
         .flatMap(lambda x: convert_to_slimPJ_fmt(x[0], x[1]))
         .distinct()
     )
-    return pipeline
 
 ###########################################
 
@@ -66,8 +63,7 @@ def minHashLSH_prepare(df, num_perm, ngram_size, B, R):
 def near_dedup_spk(spark_df, ngram_size = 13, num_perm = 256, bands = 9, ranges = 13):
     from pyrecdp.primitives.operations import FuzzyDeduplicate
     op = FuzzyDeduplicate(num_perm=num_perm, ngram_size=ngram_size, bands=bands, ranges=ranges)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 ###########################################
 

@@ -39,8 +39,7 @@ class Encoder:
                 self.path_prefix, self.current_path, df_name, self.uuid, tmp_id)
             self.tmp_materialzed_list.append(save_path)
         else:
-            save_path = "%s/%s/%s" % (self.path_prefix,
-                                      self.current_path, df_name)
+            save_path = f"{self.path_prefix}/{self.current_path}/{df_name}"
         df.write.format('parquet').mode('overwrite').save(save_path)
         return self.spark.read.parquet(save_path)
 
@@ -79,11 +78,18 @@ class TargetEncoder(Encoder):
 
         for i in range(0, self.expected_list_size):
             y_col = self.y_col_list[i]
-            per_fold_list.append(f.count(y_col).alias(f'count_{y_col}'))
-            per_fold_list.append(f.sum(y_col).alias(f'sum_{y_col}'))
-            all_list.append(f.count(y_col).alias(f'count_all_{y_col}'))
-            all_list.append(f.sum(y_col).alias(f'sum_all_{y_col}'))
-
+            per_fold_list.extend(
+                (
+                    f.count(y_col).alias(f'count_{y_col}'),
+                    f.sum(y_col).alias(f'sum_{y_col}'),
+                )
+            )
+            all_list.extend(
+                (
+                    f.count(y_col).alias(f'count_all_{y_col}'),
+                    f.sum(y_col).alias(f'sum_all_{y_col}'),
+                )
+            )
         agg_per_fold = agg_per_fold.agg(*per_fold_list)
         agg_all = agg_all.agg(*all_list)
         agg_per_fold = agg_per_fold.join(agg_all, x_col, 'left')
@@ -96,7 +102,7 @@ class TargetEncoder(Encoder):
             out_col = self.out_col_list[i]
             out_dtype = self.out_dtype
             y_mean = self.y_mean_list[i] if self.y_mean_list != None else None
-            
+
             if y_mean is None:
                 y_mean = np.array(df.groupBy().mean(y_col).collect())[0][0]
             mean = float(y_mean)
@@ -121,8 +127,9 @@ class TargetEncoder(Encoder):
             agg_per_fold = agg_per_fold.drop(
                 f'count_all_{y_col}', f'count_{y_col}', f'sum_all_{y_col}', f'sum_{y_col}')
             agg_all = agg_all.drop(f'count_all_{y_col}', f'sum_all_{y_col}')
-        return (self.materialize(agg_per_fold, "%s/train/%s" % (self.dicts_path, self.out_name)),
-                self.materialize(agg_all, "%s/test/%s" % (self.dicts_path, self.out_name)))
+        return self.materialize(
+            agg_per_fold, f"{self.dicts_path}/train/{self.out_name}"
+        ), self.materialize(agg_all, f"{self.dicts_path}/test/{self.out_name}")
 
 
 class CountEncoder(Encoder):
@@ -156,10 +163,11 @@ class CountEncoder(Encoder):
             agg_all = agg_all.withColumn(out_col, f.col(out_col).cast(spk_type.IntegerType()))
 
         if self.train_generate:
-            return (self.materialize(agg_all, "%s/train/%s" % (self.dicts_path, self.out_name)),
-                    self.materialize(agg_all, "%s/test/%s" % (self.dicts_path, self.out_name)))
+            return self.materialize(
+                agg_all, f"{self.dicts_path}/train/{self.out_name}"
+            ), self.materialize(agg_all, f"{self.dicts_path}/test/{self.out_name}")
         else:
-            return (self.materialize(agg_all, "%s/test/%s" % (self.dicts_path, self.out_name)))
+            return self.materialize(agg_all, f"{self.dicts_path}/test/{self.out_name}")
 
 
 
@@ -192,5 +200,7 @@ class FrequencyEncoder(Encoder):
         for i in range(0, self.expected_list_size):
             out_col = self.out_col_list[i]
             agg_all = agg_all.withColumn(out_col, (f.col(out_col)*1.0/length_df).cast(spk_type.FloatType()))
-        return (self.materialize(agg_all, "%s/train/%s" % (self.dicts_path, self.out_name)),
-                None)
+        return (
+            self.materialize(agg_all, f"{self.dicts_path}/train/{self.out_name}"),
+            None,
+        )

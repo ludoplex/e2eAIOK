@@ -69,10 +69,7 @@ class BaseCompareDedup(BaseLLMOperation):
         def gen_id(id_1, id_2):
             if id_1 == id_2:
                 return -1
-            if id_1 < id_2:
-                return f"{id_1} :: {id_2}"
-            else:
-                return f"{id_2} :: {id_1}"
+            return f"{id_1} :: {id_2}" if id_1 < id_2 else f"{id_2} :: {id_1}"
 
         gen_id_udf = F.udf(gen_id, T.StringType())
         compare_rouge_score_udf = F.udf(self.get_compute_func(), T.FloatType())

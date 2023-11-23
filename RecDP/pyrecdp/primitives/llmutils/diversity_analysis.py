@@ -7,8 +7,7 @@ from pyrecdp.primitives.operations import JsonlReader, ParquetReader, PerfilePar
 def diversity_indicate_spark(spark_df):
     from pyrecdp.primitives.operations import TextDiversityIndicate
     op = TextDiversityIndicate()
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def diversity_indicate(data_dir, data_file_type, out_dir, language="en", first_sent=True, statistics_flag=False):

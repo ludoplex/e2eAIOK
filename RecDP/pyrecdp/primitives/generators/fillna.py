@@ -25,11 +25,10 @@ class FillNaFeatureGenerator(super_class):
             default_value = get_default_value(field)
             if default_value != None:
                 self._fillna_feature_map[field.name] = default_value
-        if len(self._fillna_feature_map) > 0:
-            cur_idx = max_idx + 1
-            config = self._fillna_feature_map
-            pipeline[cur_idx] = Operation(cur_idx, children, pa_schema, op = 'fillna', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not self._fillna_feature_map:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = self._fillna_feature_map
+        pipeline[cur_idx] = Operation(cur_idx, children, pa_schema, op = 'fillna', config = config)
+        return pipeline, cur_idx, cur_idx
 

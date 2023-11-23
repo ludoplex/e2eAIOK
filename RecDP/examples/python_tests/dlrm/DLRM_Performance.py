@@ -38,8 +38,15 @@ def categorifyAllFeatures(df, proc, output_name="categorified", gen_dict=False, 
         print("Generate Dictionary took %.3f" % (t2 - t1))
     else:
         # or we can simply load from pre-gened
-        dict_dfs = [{'col_name': name, 'dict': proc.spark.read.parquet(
-            "%s/%s/%s/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, name))} for name in to_categorify_cols]    
+        dict_dfs = [
+            {
+                'col_name': name,
+                'dict': proc.spark.read.parquet(
+                    f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/{name}"
+                ),
+            }
+            for name in to_categorify_cols
+        ]    
 
     if enable_freqlimit:
         dict_dfs = [{'col_name': dict_df['col_name'], 'dict': dict_df['dict'].filter('count >= 15')} for dict_df in dict_dfs]
@@ -52,7 +59,7 @@ def categorifyAllFeatures(df, proc, output_name="categorified", gen_dict=False, 
     df = proc.transform(df, name=output_name)
     t2 = timer()
     print("Categorify took %.3f" % (t2 - t1))
-    
+
     return df
 
 def main():

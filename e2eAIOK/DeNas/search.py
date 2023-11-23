@@ -60,9 +60,8 @@ def main(params):
     elif params.domain == 'hf':
         if params.model_name is not None:
             params.supernet = params.model_name
-        else:
-            if "supernet" not in params:
-                raise ValueError("Please specific the model name from HF in the command line argument 'model_name' or e2eaiok_denas_hf.conf 'supernet'")
+        elif "supernet" not in params:
+            raise ValueError("Please specific the model name from HF in the command line argument 'model_name' or e2eaiok_denas_hf.conf 'supernet'")
         if os.path.exists(os.path.join(params.pretrained_model_path, params.supernet)):
             params.supernet = os.path.join(params.pretrained_model_path, params.supernet)
         super_net = SuperHFModel.from_pretrained(params.supernet)

@@ -53,13 +53,12 @@ class DecodedTextFeatureGenerator(FeaturetoolsBasedFeatureGenerator):
                 out_schema = SeriesSchema(out_feat_name, op.return_type, {'is_text': True})
                 self.feature_in_out_map[in_feat_name].append((out_schema.name, op_clz))
                 ret_pa_schema.append(out_schema)
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = self.feature_in_out_map
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'bert_decode', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = self.feature_in_out_map
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'bert_decode', config = config)
+        return pipeline, cur_idx, cur_idx
  
 class TextFeatureGenerator(FeaturetoolsBasedFeatureGenerator):
     def __init__(self):

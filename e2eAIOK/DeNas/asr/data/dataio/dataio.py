@@ -35,14 +35,14 @@ def load_data_json(json_path, replacements={}):
 def _recursive_format(data, replacements):
     if isinstance(data, dict):
         for key, item in data.items():
-            if isinstance(item, dict) or isinstance(item, list):
+            if isinstance(item, (dict, list)):
                 _recursive_format(item, replacements)
             elif isinstance(item, str):
                 data[key] = item.format_map(replacements)
-            # If not dict, list or str, do nothing
+                    # If not dict, list or str, do nothing
     if isinstance(data, list):
         for i, item in enumerate(data):
-            if isinstance(item, dict) or isinstance(item, list):
+            if isinstance(item, (dict, list)):
                 _recursive_format(item, replacements)
             elif isinstance(item, str):
                 data[i] = item.format_map(replacements)
@@ -169,8 +169,7 @@ def length_to_mask(length, max_len=None, dtype=None, device=None):
     if device is None:
         device = length.device
 
-    mask = torch.as_tensor(mask, dtype=dtype, device=device)
-    return mask
+    return torch.as_tensor(mask, dtype=dtype, device=device)
 
 
 def save_pkl(obj, file):
@@ -206,20 +205,20 @@ def load_pkl(file):
     # to access the same label dictionary by creating a lock
     count = 100
     while count > 0:
-        if os.path.isfile(file + ".lock"):
+        if os.path.isfile(f"{file}.lock"):
             time.sleep(1)
             count -= 1
         else:
             break
 
     try:
-        with open(file + ".lock", "w"):
+        with open(f"{file}.lock", "w"):
             pass
         with open(file, "rb") as f:
             return pickle.load(f) #nosec
     finally:
-        if os.path.isfile(file + ".lock"):
-            os.remove(file + ".lock")
+        if os.path.isfile(f"{file}.lock"):
+            os.remove(f"{file}.lock")
 
 
 def merge_char(sequences, space="_"):

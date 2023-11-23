@@ -94,8 +94,7 @@ class TargetEncodeOperation(BaseOperation):
     def target_encode_transform(cls, item):
         feature, df_x, df_y, dict_path, feature_out = item
         encoder = get_encoder(dict_path)
-        df_encoded = encoder.transform(df_x).rename(columns={feature: feature_out})
-        return df_encoded
+        return encoder.transform(df_x).rename(columns={feature: feature_out})
 
     def get_function_pd(self, trans_type = 'fit_transform'):
         feature_in_out = copy.deepcopy(self.feature_in_out)

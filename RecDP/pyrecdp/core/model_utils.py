@@ -146,9 +146,9 @@ def prepare_nltk_model(model_name, lang):
         'pt': 'portuguese',
         'es': 'spanish'
     }
-    assert lang in nltk_to_punkt.keys(
-    ), 'lang must be one of the following: {}'.format(
-        list(nltk_to_punkt.keys()))
+    assert (
+        lang in nltk_to_punkt
+    ), f'lang must be one of the following: {list(nltk_to_punkt.keys())}'
 
     from nltk.data import load
     logger.info('Loading nltk punkt split model...')
@@ -169,9 +169,9 @@ def prepare_huggingface_tokenizer(tokenizer_name):
     """
     from transformers import AutoTokenizer
     logger.info('Loading tokenizer from HuggingFace...')
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                              trust_remote_code=True)
-    return tokenizer
+    return AutoTokenizer.from_pretrained(
+        tokenizer_name, trust_remote_code=True
+    )
 
 
 def prepare_diversity_model(model_name, lang):
@@ -187,7 +187,7 @@ def prepare_diversity_model(model_name, lang):
     assert lang in ['zh', 'en'], 'Diversity only support zh and en'
     model_name = model_name % lang
     logger.info(f'Loading spacy model [{model_name}]...')
-    compressed_model = '%s.zip' % model_name
+    compressed_model = f'{model_name}.zip'
 
     # decompress the compressed model if it's not decompressed
     def decompress_model(compressed_model_path):
@@ -229,23 +229,22 @@ def prepare_model(lang='en', model_type='sentencepiece', model_key=None,
         'huggingface': ('%s', prepare_huggingface_tokenizer),
         'spacy': ('%s_core_web_md-3.5.0', prepare_diversity_model),
     }
-    assert model_type in type_to_name.keys(
-    ), 'model_type must be one of the following: {}'.format(
-        list(type_to_name.keys()))
+    assert (
+        model_type in type_to_name
+    ), f'model_type must be one of the following: {list(type_to_name.keys())}'
 
     if model_key is None:
-        model_key = model_type + '_' + lang
+        model_key = f'{model_type}_{lang}'
     if model_key not in MODEL_ZOO.keys():
         model_name, model_func = type_to_name[model_type]
         if model_type == 'fasttext':
             MODEL_ZOO[model_key] = model_func(model_name)
         elif model_type == 'huggingface':
             MODEL_ZOO[model_key] = model_func(model_key)
+        elif prepare_model_func is None:
+            MODEL_ZOO[model_key] = model_func(model_name, lang)
         else:
-            if prepare_model_func is not None:
-                MODEL_ZOO[model_key] = prepare_model_func(model_name, lang)
-            else:
-                MODEL_ZOO[model_key] = model_func(model_name, lang)
+            MODEL_ZOO[model_key] = prepare_model_func(model_name, lang)
     return model_key
 
 

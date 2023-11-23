@@ -3,10 +3,7 @@ from .base_api import base_api
 def try_finall(regex, input_str):
     import re
     ret = re.findall(regex, input_str)
-    if len(ret) == 0:
-        return None
-    else:
-        return ret[0]
+    return None if len(ret) == 0 else ret[0]
     
 def extract_info_from_report(report_content):
     method = None
@@ -18,7 +15,7 @@ def extract_info_from_report(report_content):
         if 'PATIENT NO.' in t:
             p_id = try_finall("\d+", t)
             method = None
-            side = None                    
+            side = None
         elif 'SOFT TISSUE MAMMOGRAPHY REVEALED:' in t:
             method = 'DM'
         elif 'OPINION:' in t:
@@ -34,12 +31,12 @@ def extract_info_from_report(report_content):
                 continue
             cur_key = f"{side}_{method}"
             if cur_key not in ret:
-                ret[cur_key] = {}
-                ret[cur_key]['Side'] = side
-                ret[cur_key]['Patient_ID'] = int(p_id)
-                ret[cur_key]['Type'] = method
-                ret[cur_key]['symptoms'] = t
-    
+                ret[cur_key] = {
+                    'Side': side,
+                    'Patient_ID': int(p_id),
+                    'Type': method,
+                    'symptoms': t,
+                }
     return ret
 
 class CESM_breast_cancer(base_api):
@@ -57,8 +54,11 @@ class CESM_breast_cancer(base_api):
     def to_pandas(self, nrows = None):
         import pandas as pd
         import os, docx2txt
-        ret = {}
-        ret['manual_annotations'] = pd.read_excel(self.saved_path['manual_annotations'], sheet_name="all")
+        ret = {
+            'manual_annotations': pd.read_excel(
+                self.saved_path['manual_annotations'], sheet_name="all"
+            )
+        }
         #ret['medical_report'] = {}
         medical_report_content = []
         medical_extracted = []
@@ -70,10 +70,8 @@ class CESM_breast_cancer(base_api):
                 Warning(e)
             medical_report_content.append(file_content)
             ext = extract_info_from_report(file_content)
-            for side, line in ext.items():
-                medical_extracted.append(line)
-
+            medical_extracted.extend(line for side, line in ext.items())
         ret['medical_report'] = pd.DataFrame.from_records(medical_extracted)
-        
+
         return ret
          

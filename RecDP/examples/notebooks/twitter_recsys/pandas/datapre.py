@@ -409,14 +409,11 @@ def hashit(x):
 
 def ret_word( x, rw=0 ):
     x = x.split(' ')
-    
+
     if len(x)>rw:
         return hashit(x[rw])
     elif rw<0:
-        if len(x)>0:
-            return hashit(x[-1])
-        else:
-            return 0
+        return hashit(x[-1]) if len(x)>0 else 0
     else:
         return 0
     
@@ -429,15 +426,11 @@ def extract_hash(text, split_text='@', no=0):
         cl_loop = True
         uhash += clean_text(text_split[0])
         while cl_loop:
-            if len(text_split)>1:
-                if text_split[1] in ['_']:
-                    uhash += clean_text(text_split[1]) + clean_text(text_split[2])
-                    text_split = text_split[2:]
-                else:
-                    cl_loop = False
+            if len(text_split) > 1 and text_split[1] in ['_']:
+                uhash += clean_text(text_split[1]) + clean_text(text_split[2])
+                text_split = text_split[2:]
             else:
                 cl_loop = False
-                
     return hashit(uhash)
 
 def clean_text(text):
@@ -460,11 +453,11 @@ def check_last_char_quest(x_org):
         return(0)
     elif x[-1]=='?' and x[-2]!='!':
         return(1)
-    elif x[-1]=='?' and x[-2]=='!':
+    elif x[-1] == '?':
         return(2)
     elif x[-1]=='!' and x[-2]=='?':
         return(3)
-    elif x[-1]=='!' and x[-2]!='?':
+    elif x[-1] == '!':
         return(4)
     else:
         return(0)
@@ -554,8 +547,7 @@ def generate_dict_dfs(df, cols, doSplit, output_name, sep='\t', bucketSize=100):
 
 
 def generate_dictionary(df, cols, doSplit, output_name, sep, bucketSize):    
-    dfs = generate_dict_dfs(df, cols, doSplit, output_name, sep, bucketSize)
-    return dfs 
+    return generate_dict_dfs(df, cols, doSplit, output_name, sep, bucketSize) 
 
 
 def get_col_tgt_src(i):
@@ -577,13 +569,11 @@ def find_dict(name, dict_dfs):
                     dict_name = v
                 else:
                     dict_df = v
-            if str(dict_name) == str(name):
-                return dict_df
         else:
             dict_df = i['dict']
             dict_name = i['col_name']
-            if str(dict_name) == str(name):
-                return dict_df
+        if str(dict_name) == str(name):
+            return dict_df
     return None
 
     
@@ -595,16 +585,16 @@ def categorify(cols, df, dict_dfs, doSplit=False, sep='\t'):
     
     for i in cols:
         col_name, src_name = get_col_tgt_src(i)
-        
+
         dict_df = find_dict(src_name, dict_dfs)
-        
+
         indexing = dict(zip(dict_df.dict_col, dict_df.dict_col_id))
-        
+
         if doSplit:
             df[col_name] = df[src_name].map(lambda x: x.split(sep)).map(lambda x: index_mapping(x, indexing) )
         else:
-            df[col_name] = df[src_name].apply(lambda x: indexing[x] if x in indexing else 0)
-    
+            df[col_name] = df[src_name].apply(lambda x: indexing.get(x, 0))
+
     return df 
 
 
@@ -711,12 +701,12 @@ def TargetEncodingFeatures(df, mode, output_name):
         raise NotImplementedError("mode need to be train or valid")
 
     targets = ['reply_timestamp', 'retweet_timestamp', 'retweet_with_comment_timestamp', 'like_timestamp']
-    
+
     t1 = timer()
     y_mean_all = list(df[targets].mean())
     y_mean_all_df = pd.DataFrame(data=[y_mean_all], columns=targets)
 
-    y_mean_all_df.to_parquet(output_name+f'/targets_mean.parquet')
+    y_mean_all_df.to_parquet(output_name + '/targets_mean.parquet')
 
     te_train_dfs = []
     te_test_dfs = []
@@ -724,10 +714,7 @@ def TargetEncodingFeatures(df, mode, output_name):
         target_tmp = targets
         out_name = ""
         if str(c) in TE_col_excludes:
-            target_tmp = []
-            for tgt in targets:
-                if tgt not in TE_col_excludes[c]:
-                    target_tmp.append(tgt)
+            target_tmp = [tgt for tgt in targets if tgt not in TE_col_excludes[c]]
         out_col_list = []
         for tgt in target_tmp:
             if isinstance(c, list):
@@ -746,7 +733,10 @@ def TargetEncodingFeatures(df, mode, output_name):
         te_train_df, te_test_df = encoder.transform(df, output_name, out_name)
         te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': te_train_df})
         te_test_dfs.append({'col_name': c, 'dict': te_test_df})
-        print(f"generating target encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
+        print(
+            "generating target encoding for %s upon %s took %.1f seconds"
+            % (str(c), str(target_tmp), timer() - start)
+        )
 
     t2 = timer()
     print("Generate encoding feature totally took %.3f" % (t2 - t1))
@@ -766,22 +756,19 @@ class CountEncoder:
     def transform(self, df):
         x_col = self.x_col_list
         cols = [x_col] if isinstance(x_col, str) else x_col
-        
+
         agg_all = pd.DataFrame()
-        
+
         for i in range(0, self.expected_list_size):
             y_col = self.y_col_list[i]
             out_col = self.out_col_list[i]
             agg_all = df.groupby([cols]).count()[y_col].reset_index().rename(columns={y_col: out_col})
-        
+
         for i in range(0, self.expected_list_size):
             out_col = self.out_col_list[i]
             agg_all = agg_all[out_col].astype('int32')
 
-        if self.train_generate:
-            return (agg_all, agg_all)
-        else:
-            return agg_all
+        return (agg_all, agg_all) if self.train_generate else agg_all
 
 def CountEncodingFeatures(df, gen_dict, mode, train_generate=True):
     if mode == 'stage1':
@@ -795,7 +782,7 @@ def CountEncodingFeatures(df, gen_dict, mode, train_generate=True):
         prefix = "inference_"
     else:
         raise NotImplementedError("mode need to be train or valid")
-    
+
     targets = ['reply_timestamp']
 
     t1 = timer()
@@ -805,7 +792,7 @@ def CountEncodingFeatures(df, gen_dict, mode, train_generate=True):
         target_tmp = targets
         out_name = ""
         out_col_list = []
-        for tgt in target_tmp:
+        for _ in target_tmp:
             if isinstance(c, list):
                 out_col_list.append(prefix + 'GCE_'+'_'.join(c))
                 out_name = prefix + 'GCE_'+'_'.join(c)
@@ -821,15 +808,15 @@ def CountEncodingFeatures(df, gen_dict, mode, train_generate=True):
         else:
             ce_test_df = encoder.transform(df)
         ce_test_dfs.append({'col_name': c, 'dict': ce_test_df})
-        print(f"generating count encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
-    
+        print(
+            "generating count encoding for %s upon %s took %.1f seconds"
+            % (str(c), str(target_tmp), timer() - start)
+        )
+
     t2 = timer()
     print("Generate count encoding feature totally took %.3f" % (t2 - t1))
 
-    if train_generate:
-        return (ce_train_dfs, ce_test_dfs)
-    else:
-        return ce_test_dfs
+    return (ce_train_dfs, ce_test_dfs) if train_generate else ce_test_dfs
 
 
 def model_merge(df, te_train_dfs):
@@ -890,8 +877,7 @@ def getTargetEncodingFeaturesDicts(get_path, mode, train_dict_load = True):
 
     targets = ['reply_timestamp', 'retweet_timestamp', 'retweet_with_comment_timestamp', 'like_timestamp']
     y_mean_all = []
-    y_mean_all_df = pd.read_parquet(
-        "%s/targets_mean.parquet" % (get_path))
+    y_mean_all_df = pd.read_parquet(f"{get_path}/targets_mean.parquet")
 
     te_train_dfs = []
     te_test_dfs = []
@@ -899,22 +885,20 @@ def getTargetEncodingFeaturesDicts(get_path, mode, train_dict_load = True):
         target_tmp = targets
         out_name = ""
         if str(c) in TE_col_excludes:
-            target_tmp = []
-            for tgt in targets:
-                if tgt not in TE_col_excludes[c]:
-                    target_tmp.append(tgt)
-        for tgt in target_tmp:
-            if isinstance(c, list):
-                out_name = prefix + 'GTE_'+'_'.join(c)
-            else:
-                out_name = prefix + f'TE_{c}'
+            target_tmp = [tgt for tgt in targets if tgt not in TE_col_excludes[c]]
+        for _ in target_tmp:
+            out_name = (
+                prefix + 'GTE_' + '_'.join(c)
+                if isinstance(c, list)
+                else prefix + f'TE_{c}'
+            )
         if train_dict_load:
-            te_train_path = "%s/train/%s" % (get_path, out_name+'.parquet')
+            te_train_path = f"{get_path}/train/{out_name + '.parquet'}"
             te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': pd.read_parquet(te_train_path)})
-        
-        te_test_path = "%s/test/%s" % (get_path, out_name+'.parquet')
+
+        te_test_path = f"{get_path}/test/{out_name + '.parquet'}"
         te_test_dfs.append({'col_name': c, 'dict': pd.read_parquet(te_test_path)})
-        
+
     return (te_train_dfs, te_test_dfs, y_mean_all_df)
 
 
@@ -925,41 +909,40 @@ def valid_mergeFeatures(df, te_test_dfs, y_mean_all_df, output_name, mode, dict_
             if dict_df['col_name'] == 'mention':
                 dict_dfs.append({'col_name': 'mentioned_bucket_id', 'dict':dict_df['dict']})
                 dict_dfs.append({'col_name': 'mentioned_count', 'dict':dict_df['dict'].drop(columns='dict_col_id').rename(columns={'count':'dict_col_id'})})
-        
+
         df['mentioned_bucket_id'] = df['mention']
         df['mentioned_count'] = df['mention']
-        
+
         # df = categorify([{'bucketized_tweet_word': 'tweet'}], df, dict_dfs=dict_dfs, doSplit=True, sep=' ')
         # df.to_parquet(output_name+"categorified_bucket")
         # df = categorify(['mentioned_bucket_id', 'mentioned_count'], df, dict_dfs=dict_dfs)
         # df.to_parquet(output_name+"categorified")
         df = pd.read_parquet(output_name+"categorified")
-    
+
         # 4. get most and second used bucketized_tweet_word 
         df['sorted_bucketized_tweet_word'] = df['bucketized_tweet_word'].apply(lambda x: SortIntArrayByFrequency(x))
-    
+
         df['most_used_word_bucket_id'] = df['sorted_bucketized_tweet_word'].apply(lambda x: x[0] if len(x)>0 else np.nan)
         df['second_used_word_bucket_id'] = df['sorted_bucketized_tweet_word'].apply(lambda x: x[1] if len(x)>1 else np.nan)     
-    
+
     # merge target encoding dicts 
     df = model_merge(df, te_test_dfs)
     df.to_parquet(output_name+".full")
-        
+
     te_feature_list = stage1_features_list if mode == "stage1" else stage2_features_list
     for tgt in target_list:
-        to_fill_list = []
-        for feature in te_feature_list:
-            if 'TE_' in feature and tgt in feature:
-                to_fill_list.append(feature)
+        to_fill_list = [
+            feature
+            for feature in te_feature_list
+            if 'TE_' in feature and tgt in feature
+        ]
         df[to_fill_list] = df[to_fill_list].fillna(y_mean_all_df.loc[0, tgt])
-    
+
     # select features
     feature_list = final_feature_list_stage1 if mode == "stage1" else final_feature_list_stage2
     df = df[feature_list]
 
-    if mode == "stage1":
-        df.to_parquet(output_name)
-    elif mode == "stage2":
+    if mode in ["stage1", "stage2"]:
         df.to_parquet(output_name)
     else:
         raise NotImplementedError("mode need to be stage1 or stage2")
@@ -1068,7 +1051,7 @@ def valid_stage1():
     # df_index = df_index[['tweet_id','engaging_user_id', 'is_train']]
     # df = pd.merge(df, df_index, on=["tweet_id","engaging_user_id"])
     # print("data loaded!")
-    
+
     # ############# decode data
     # df = decodeBertTokenizerAndExtractFeatures(df)
     # print("data decoded!")
@@ -1077,8 +1060,15 @@ def valid_stage1():
 
     ############# merge target encoding dict from train
     dict_names = ['tweet', 'mention']
-    dict_dfs = [{'col_name': name, 'dict': pd.read_parquet(
-            "%s/%s/%s/%s" % (path_prefix, current_path, dicts_folder, name+'.parquet'))} for name in dict_names]
+    dict_dfs = [
+        {
+            'col_name': name,
+            'dict': pd.read_parquet(
+                f"{path_prefix}/{current_path}/{dicts_folder}/{name + '.parquet'}"
+            ),
+        }
+        for name in dict_names
+    ]
     _, te_test_dfs, y_mean_all_df = getTargetEncodingFeaturesDicts(path_prefix+current_path+dicts_folder, mode='stage1')
 
     val_df = valid_mergeFeatures(df, te_test_dfs, y_mean_all_df, output_name=path_prefix+current_path+"/stage1_valid.parquet",mode="stage1", dict_dfs=dict_dfs)
@@ -1086,15 +1076,13 @@ def valid_stage1():
 
 
 def valid_stage2():
-    ############# set up
-    path_prefix = '/mnt/data'
     current_path = '/recsys2021/datapre_stage1'
     original_folder = '/valid/valid'
     dicts_folder = '/recsys_dicts'
     index_path = '/valid/valid_split_index.parquet'
 
     ############# load data
-    df = pd.read_parquet(path_prefix+current_path+"stage1_valid_all")
+    df = pd.read_parquet(f'/mnt/data{current_path}stage1_valid_all')
     print("data loaded!")
 
     ############# count encoding
@@ -1157,23 +1145,30 @@ def inference_join():
     current_path = "/recsys2021/datapre_stage1"
     original_folder = "/test/test"
     dicts_folder = "/recsys_dicts"
-    
+
     #############  load decoder data
     df = spark.read.parquet(path_prefix+current_path+'test1_decode.parquet')
     print("data decoded!")
 
     ############# load dict from stage 1
     dict_names = ['tweet', 'mention']
-    dict_dfs = [{'col_name': name, 'dict': pd.read_parquet(
-            "%s/%s/%s/%s" % (path_prefix, current_path, dicts_folder, name+'.parquet'))} for name in dict_names]
+    dict_dfs = [
+        {
+            'col_name': name,
+            'dict': pd.read_parquet(
+                f"{path_prefix}/{current_path}/{dicts_folder}/{name + '.parquet'}"
+            ),
+        }
+        for name in dict_names
+    ]
     _, te_test_dfs, y_mean_all_df = getTargetEncodingFeaturesDicts(mode='stage1', train_dict_load=False)
-    
+
     ############# set up to stage 2
     current_path = "/recsys2021/datapre_stage2/"
 
     ############# count encoding
     ce_test_dfs = CountEncodingFeatures(df, gen_dict=True,mode="inference",train_generate=False)
-    
+
     ############# load dict from stage 2
     _, te_test_dfs_stage2, y_mean_all_df_stage2 = getTargetEncodingFeaturesDicts(get_path, mode = 'stage2', train_dict_load=False)
 

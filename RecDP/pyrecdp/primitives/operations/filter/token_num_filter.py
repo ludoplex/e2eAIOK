@@ -36,10 +36,8 @@ class TokenNumFilter(BaseFilter):
                 token_func=tokenizer.tokenize if tokenizer else None
             )
             num_token = len(tokens)
-            if min_num <= num_token <= max_num:
-                return True
-            else:
-                return False
+            return min_num <= num_token <= max_num
+
         return compute
 
 

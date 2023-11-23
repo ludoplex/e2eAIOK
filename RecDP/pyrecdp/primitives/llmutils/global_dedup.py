@@ -19,11 +19,7 @@ def pre_check(spark_df):
         ['hash', 'doc_id']
     ]
     for idx in [1, 2, 3, 0]:
-        match = True
-        for key in step_list[idx]:
-            if key not in column_names:
-                match = False
-                continue
+        match = all(key in column_names for key in step_list[idx])
         if match:
             return idx + 1
     return 0
@@ -53,7 +49,7 @@ def get_duplication_list_spk(spark_df):
     return dict_df_all
 
 def combine_hash_indexing(data_dir_list, out_dir, spark = None):
-    if spark == None:
+    if spark is None:
         rdp = SparkDataProcessor()
         spark=rdp.spark
     first = True
@@ -65,32 +61,32 @@ def combine_hash_indexing(data_dir_list, out_dir, spark = None):
         else:
             dict_df_all = dict_df_all.union(df)
     total_docs = dict_df_all.count()
-    
+
     index_df = combine_hash_indexing_spk(dict_df_all)
     hash_total_docs = index_df.count()
-    
+
     index_df.write.mode('overwrite').parquet(f"{out_dir}")
     print(f"Index has been written to {out_dir}")
     print(f"  Total hash count from different source is {total_docs}")
     print(f"  Total distinct hash count is {hash_total_docs}")
     
 def get_hash_indexing(data_dir, out_dir, spark = None):
-    if spark == None:
+    if spark is None:
         rdp = SparkDataProcessor()
         spark=rdp.spark
     dict_df_all = spark.read.option("recursiveFileLookup", "true").parquet(data_dir)
     total_docs = dict_df_all.count()
-    
+
     index_df = get_hash_indexing_spk(dict_df_all)
     hash_total_docs = index_df.count()
-    
+
     index_df.write.mode('overwrite').parquet(f"{out_dir}")
     print(f"Index has been written to {out_dir}")
     print(f"  Total processed documents count is {total_docs}")
     print(f"  Total distinct hash count is {hash_total_docs}")
 
 def get_duplication_list(data_dir, out_dir, spark = None):
-    if spark == None:
+    if spark is None:
         rdp = SparkDataProcessor()
         spark=rdp.spark
     dict_df_all = spark.read.option("recursiveFileLookup", "true").parquet(data_dir)
@@ -105,14 +101,14 @@ def global_dedup(data_dir, out_dir, source = "", in_type = 'parquet', is_norm = 
     rdp = SparkDataProcessor()
     spark=rdp.spark
     dup_df = None
-    
+
     sub_task_dir = {}
     if in_type == 'parquet':
         spark_df = read_parquet(data_files, spark)
     elif in_type == 'jsonl':
         spark_df = read_json(data_files, spark)
     start_step = pre_check(spark_df)
-    
+
     # 1. if input hasn't been processed by global hash
     post_global_hash_count = 0
     hash_df_list = []
@@ -134,35 +130,35 @@ def global_dedup(data_dir, out_dir, source = "", in_type = 'parquet', is_norm = 
 
     # 2. get global hash indexing
     if start_step <= 2:
-        with Timer(f"Generate Global indexing based on hash"):
+        with Timer("Generate Global indexing based on hash"):
             spark_df = get_hash_indexing_spk(spark_df).cache()
             index_count = spark_df.count()
 
     # 3. generate duplication indexing
     if start_step <= 3:
-        with Timer(f"Generate global duplication list"):
+        with Timer("Generate global duplication list"):
             dup_df = get_duplication_list_spk(spark_df).cache()
             duplication_count = dup_df.count()
-    
+
     # 4. deduplicate input
     post_global_dedup_count = 0
     if start_step <= 4:
-        if len(hash_df_list) != 0 and dup_df != None:
+        if hash_df_list and dup_df != None:
             pass
-        elif len(hash_df_list) == 0 and dup_df == None and dup_dir != None:
+        elif not hash_df_list and dup_df is None and dup_dir != None:
             hash_df_list = [(spark_df, "")]
             dup_df = read_parquet(dup_dir, spark)
-        elif dup_dir == None:
+        elif dup_dir is None:
             raise ValueError("Global Dedup unable to proceed because no duplication dict is provided.")
 
-        with Timer(f"reduce input file based on detected duplication"):
+        with Timer("reduce input file based on detected duplication"):
             for hash_df, sub_task in hash_df_list:
                 out_df = index_based_reduction_spk(hash_df, dup_df, True).cache()
                 post_global_dedup_count += out_df.count()
-            
+
                 out_file = os.path.join(out_dir, 'deduplicated', sub_task)
                 out_df.write.mode("overwrite").parquet(f"{out_file}")
-            
+
     print(f"Input data count is {post_global_hash_count}")
     print(f"  unique data count is {index_count}")
     print(f"  duplication count is {duplication_count}")
@@ -175,8 +171,7 @@ def global_dedup(data_dir, out_dir, source = "", in_type = 'parquet', is_norm = 
 def global_dedup_spk(spark_df, source = "", is_norm = True):
     from pyrecdp.primitives.operations import GlobalDeduplicate
     op = GlobalDeduplicate()
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 ############################################
 
 def run(text_key, data_dir, out_dir, data_type):

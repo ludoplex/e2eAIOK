@@ -41,16 +41,18 @@ class TextReader(BaseLLMOperation):
         def add_new_empty_column(content, column_name):
             content[column_name] = None
             return content
+
         def convert_to_string(content, column_name):
             content[column_name] = str(content[column_name])
             return content
+
         for column in [column for column in ds2.columns() if column not in ds1.columns()]:
             ds1 = ds1.map(lambda x: add_new_empty_column(x, column))
         for column in [column for column in ds1.columns() if column not in ds2.columns()]:
             ds2 = ds2.map(lambda x: add_new_empty_column(x, column))
         ds1_fields_dict  =dict(zip(ds1.schema().names, ds1.schema().types))
         ds2_fields_dict = dict(zip(ds2.schema().names, ds2.schema().types))
-        for column_name in ds1_fields_dict.keys():
+        for column_name in ds1_fields_dict:
             if ds2_fields_dict[column_name] != ds1_fields_dict[column_name] and not (
                     str(ds2_fields_dict[column_name]) == "null" or str(ds1_fields_dict[column_name]) == "null"):
                 ds1 = ds1.map(lambda x: convert_to_string(x, column_name))
@@ -71,7 +73,7 @@ class TextReader(BaseLLMOperation):
             df1_fields_dict[df1_field.name] = df1_field.dataType
         for df2_field in df2_fields:
             df2_fields_dict[df2_field.name] = df2_field.dataType
-        for column_name in df1_fields_dict.keys():
+        for column_name in df1_fields_dict:
             if df2_fields_dict[column_name] != df1_fields_dict[column_name] and not (
                     df2_fields_dict[column_name] == NullType() or df1_fields_dict[column_name] == NullType()):
                 df1 = df1.withColumn(column_name, F.col(column_name).cast(StringType()))

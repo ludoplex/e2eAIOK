@@ -16,15 +16,11 @@ def try_category(s):
     n_unique = s.nunique()
     total_len = len(s)
     threshold = (total_len / 5)
-    if 1 < n_unique <= threshold:
-        return True     
-    return False
+    return 1 < n_unique <= threshold
 
 def try_onehot(s):
     n_unique = s.nunique()
-    if n_unique < 10:
-        return s.unique().tolist()
-    return False
+    return s.unique().tolist() if n_unique < 10 else False
 
 def try_datetime(s):
     if pdt.is_datetime64_any_dtype(s):
@@ -34,25 +30,14 @@ def try_datetime(s):
     if s.isnull().all():
         return False
     try:
-        if len(s) > 500:
-            # Sample to speed-up type inference
-            result = s.sample(n=500, random_state=0)
-        else:
-            result = s
+        result = s.sample(n=500, random_state=0) if len(s) > 500 else s
         result = pd.to_datetime(result, errors='coerce')
-        if result.isnull().mean() > 0.8:  # If over 80% of the rows are NaN
-            return False
-        else:
-            return True
+        return result.isnull().mean() <= 0.8
     except:
         return False
     
 def get_datetime_potential_features(s):
-    if len(s) > 5000:
-        # Sample to speed-up type inference
-        result = s.sample(n=5000, random_state=0)
-    else:
-        result = s
+    result = s.sample(n=5000, random_state=0) if len(s) > 5000 else s
     result = pd.to_datetime(result, errors='coerce')
     ret = []
     if not is_unique(result.dt.day):
@@ -64,24 +49,18 @@ def get_datetime_potential_features(s):
     if not is_unique(result.dt.weekday):
         ret.append('weekday')
     if not is_unique(result.dt.hour):
-        ret.append('hour')    
+        ret.append('hour')
     return ret
 
 def try_re_numeric(s):
     if s.isnull().all():
         return True
     try:
-        if len(s) > 500:
-            # Sample to speed-up type inference
-            result = s.sample(n=500, random_state=0)
-        else:
-            result = s
+        result = s.sample(n=500, random_state=0) if len(s) > 500 else s
         import re
         result = result.apply(lambda x: "".join(re.findall(r'\d+.*\d*', x)))
         result = pd.to_numeric(result, errors='coerce')
-        if result.isnull().mean() <= 0.8:  # If over 80% of the rows are NaN
-            return True
-        return False
+        return result.isnull().mean() <= 0.8
     except:
         return False
      
@@ -91,15 +70,9 @@ def try_numeric(s):
     if s.isnull().all():
         return True
     try:
-        if len(s) > 500:
-            # Sample to speed-up type inference
-            result = s.sample(n=500, random_state=0)
-        else:
-            result = s
+        result = s.sample(n=500, random_state=0) if len(s) > 500 else s
         result = pd.to_numeric(result, errors='coerce')
-        if result.isnull().mean() <= 0.8:  # If over 80% of the rows are NaN
-            return True
-        return False
+        return result.isnull().mean() <= 0.8
     except:
         return False
 
@@ -129,10 +102,7 @@ def try_list_string(s):
     return False
  
 def is_encoded(s):
-    if len(s) > 1000:
-        sample_data = s.sample(n=1000, random_state=0)
-    else:
-        sample_data = s
+    sample_data = s.sample(n=1000, random_state=0) if len(s) > 1000 else s
     from pyrecdp.primitives.generators.nlp import BertTokenizerDecode
     proc_ = BertTokenizerDecode().get_function()
     try:

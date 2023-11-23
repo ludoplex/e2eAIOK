@@ -17,5 +17,7 @@ class TupleOperation(BaseOperation):
         return process
 
     def get_function_spark(self, rdp, trans_type = 'fit_transform'):
-        raise NotImplementedError(f"CoordinatesOperation spark dataframe is not supported yet.")
+        raise NotImplementedError(
+            "CoordinatesOperation spark dataframe is not supported yet."
+        )
 AUTOFEOPERATORS.register(TupleOperation, "tuple")

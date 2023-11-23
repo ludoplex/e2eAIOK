@@ -10,8 +10,7 @@ class SeriesSchema:
             s = args[0]
             self.name = s.name
             in_type = s.dtype
-            self.config = {}
-            self.config['is_text'] = is_text_series(s) 
+            self.config = {'is_text': is_text_series(s)}
             self.config['is_tuple'] = is_tuple(s)
             self.config['is_integer'] = is_integer_convertable(s)
         elif len(args) >= 2:
@@ -19,10 +18,7 @@ class SeriesSchema:
             self.name = args[0]
             # TODO: convert featuretools return_type to recdp return type
             in_type = args[1]
-            if len(args) > 2:
-                self.config = args[2]
-            else:
-                self.config = {}
+            self.config = args[2] if len(args) > 2 else {}
             self.config['is_integer'] = False
         else:
             raise ValueError(f"SeriesSchema unsupport input as {args}")
@@ -77,14 +73,18 @@ class SeriesSchema:
         self.post_fix()
 
     def mydump(self):
-        return (self.name, list(k if v == True else (k, v) for k, v in self.config.items() if v is not False))
+        return self.name, [
+            k if v == True else (k, v)
+            for k, v in self.config.items()
+            if v is not False
+        ]
 
     def __repr__(self):
         return f"{self.mydump()}"
    
     @property
     def dtype_str(self):
-        return str(dict((k, v) for k, v in self.config.items() if v))
+        return str({k: v for k, v in self.config.items() if v})
 
     @property
     def is_label(self):
@@ -172,17 +172,11 @@ class SeriesSchema:
 
     @property
     def group_id_list(self):
-        if 'group_id' in self.config:
-            return self.config["group_id"]
-        else:
-            return []
+        return self.config["group_id"] if 'group_id' in self.config else []
     
     @property
     def datetime_ft_list(self):
-        if 'datetime_ft' in self.config:
-            return self.config["datetime_ft"]
-        else:
-            return []
+        return self.config["datetime_ft"] if 'datetime_ft' in self.config else []
 
 
 class DataFrameSchema(list):

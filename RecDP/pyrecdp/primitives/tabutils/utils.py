@@ -74,10 +74,10 @@ def delta(df, gb_col, exlude_columns = [],  window=1):
     delta_features = delta(data_features,"ID")
     print(pd.concat([data_features, delta_features], axis=1))
     """
-    df_delta = df.loc[:, ~df.columns.isin(exlude_columns)] 
+    df_delta = df.loc[:, ~df.columns.isin(exlude_columns)]
     df_new = pd.DataFrame()
     df_new = df_delta.groupby(gb_col).diff(window)
-    df_new = df_new.fillna(0).add_prefix("Delta_" + str(window))
+    df_new = df_new.fillna(0).add_prefix(f"Delta_{str(window)}")
     return df_new
 
 
@@ -87,10 +87,7 @@ def CalcEnergy(x):
 
 def CalcSlope(x):
     length = len(x)
-    if length < 2:
-        return np.nan
-    slope = (x[-1] - x[0])/(length -1)
-    return slope
+    return np.nan if length < 2 else (x[-1] - x[0])/(length -1)
 
 def statistics(df, stats, feature_list , gb_col, window=6):
     df = df[feature_list + [gb_col]]
@@ -104,38 +101,38 @@ def statistics(df, stats, feature_list , gb_col, window=6):
         df_var = window.var(engine="numba", engine_kwargs={"parallel": True})
         df_var = df_var.add_prefix("Var_").fillna(0)
         df_c[i] = df_var
-        new_names = new_names + df_var.keys().tolist()
-        i = i + 1
+        new_names += df_var.keys().tolist()
+        i += 1
     if "mean" in stats:
         df_mean = pd.DataFrame()
         df_mean = window.mean(engine="numba", engine_kwargs={"parallel": True})
         df_c[i] = df_mean.add_prefix("Mean_")
         new_names = new_names + df_c[i].keys().tolist()
-        i = i + 1
+        i += 1
     if "min" in stats:
         df_min = pd.DataFrame()
         df_min = window.min(engine="numba", engine_kwargs={"parallel": True})
         df_c[i] = df_min.add_prefix("Min_")
         new_names = new_names + df_c[i].keys().tolist()
-        i = i + 1
+        i += 1
     if "max" in stats:
         df_max = pd.DataFrame()
         df_max = window.max(engine="numba", engine_kwargs={"parallel": True})
         df_c[i] = df_max.add_prefix("Max_")
         new_names = new_names + df_c[i].keys().tolist()
-        i = i + 1
+        i += 1
     if "median" in stats:
         df_median = pd.DataFrame()
         df_median = window.median(engine="numba", engine_kwargs={"parallel": True})
         df_c[i] = df_median.add_prefix("Median_").drop(columns=["Median_" + gb_col])
         new_names = new_names + df_c[i].keys().tolist()
-        i = i + 1
+        i += 1
     if "energy" in stats:
         df_energy = pd.DataFrame()
         df_energy = window.apply(CalcEnergy, raw = True, engine="numba", engine_kwargs={"parallel": True})
         df_c[i] = df_energy.add_prefix("Energy_").drop(columns=["Energy_" + gb_col])
         new_names = new_names + df_c[i].keys().tolist()
-        i = i + 1
+        i += 1
     new_df = pd.concat(df_c.values(), axis = 1, ignore_index=True)
     names = dict(zip(new_df.keys(),new_names))
     new_df.rename(names, axis = 1, inplace=True)
@@ -277,13 +274,19 @@ def SOFA(df, SaO2_FiO2 = None, MAP = None, Liver = None, Creatinine = None, Plat
     9   89.752916   67  14.576940  6.409351   487      1    11
     """   
     sofa_score = 0
-    if (SaO2_FiO2):
+    if SaO2_FiO2:
         Resp = df[SaO2_FiO2]
-        sofa_score = sofa_score + Resp.map(lambda x:
-                                  1 if ((x < 302) & (x > 221)) else
-                                  2 if ((x < 221) & (x >142))  else 
-                                  3 if ((x < 142)  & (x > 67)) else
-                                  4 if ((x < 67) & (x > 0)) else 0)
+        sofa_score += Resp.map(
+            lambda x: 1
+            if ((x < 302) & (x > 221))
+            else 2
+            if ((x < 221) & (x > 142))
+            else 3
+            if ((x < 142) & (x > 67))
+            else 4
+            if ((x < 67) & (x > 0))
+            else 0
+        )
     if (MAP):
         MAP = df[MAP]
         sofa_score = sofa_score + MAP.map(lambda x:
@@ -316,13 +319,19 @@ def SOFA(df, SaO2_FiO2 = None, MAP = None, Liver = None, Creatinine = None, Plat
 def MEWS(df, Resp = None, HR = None, Temp_C = None, Temp_F = None, SBP = None):
     
     mews_score = 0
-    if (Resp):
+    if Resp:
         Resp = df[Resp]
-        mews_score = mews_score + Resp.map(lambda x:
-                                  1 if((x > 15) & (x < 20)) else
-                                  2 if ((x < 9)  & (x > 0)) else
-                                  2 if ((x < 29) & (x >20))  else 
-                                  3 if (x > 30) else 0)
+        mews_score += Resp.map(
+            lambda x: 1
+            if ((x > 15) & (x < 20))
+            else 2
+            if ((x < 9) & (x > 0))
+            else 2
+            if ((x < 29) & (x > 20))
+            else 3
+            if (x > 30)
+            else 0
+        )
     if (Temp_C):
        Temp = df[Temp_C]
        mews_score = mews_score + Temp.map(lambda x:
@@ -405,8 +414,6 @@ def sliding_window(X_df, lenf, gb_col, window=6):
     # create unique identifier for each repeated column
     i = 0
     for i in range(win, 0, -1):
-        for j in range(old_labels_length):
-            identifier.append("-" + str(i-1))
-      # rename columns with the new identifiers
+        identifier.extend(f"-{str(i - 1)}" for _ in range(old_labels_length))
     df.columns = df.columns.astype('string') + identifier
     return df

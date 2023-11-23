@@ -14,9 +14,18 @@ class outbrain(base_api):
             'promoted_content': "promoted_content.csv"
         }
 
-        self.saved_path = dict((f_name, self.download_url(f_path, f"https://outbrain-sampled.s3.us-west-2.amazonaws.com/{f_path}")) for f_name, f_path in file_list.items())
+        self.saved_path = {
+            f_name: self.download_url(
+                f_path,
+                f"https://outbrain-sampled.s3.us-west-2.amazonaws.com/{f_path}",
+            )
+            for f_name, f_path in file_list.items()
+        }
 
     def to_pandas(self, nrows = None):
         import pandas as pd
-        return dict((f_name, pd.read_csv(f_path)) for f_name, f_path in self.saved_path.items())
+        return {
+            f_name: pd.read_csv(f_path)
+            for f_name, f_path in self.saved_path.items()
+        }
          

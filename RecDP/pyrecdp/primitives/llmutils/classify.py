@@ -54,8 +54,7 @@ def classify_spark(spark_df, classify_column, write_data_file_type, result_path)
         op = ClassifyJsonlWriter(result_path, classify_column)
     else:
         raise NotImplementedError(f"{write_data_file_type} is not supported in RecDP LLM ResumableTextPipeline yet.")
-    pred = op.process_spark(spark_df.sparkSession, spark_df)
-    return pred
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 if __name__ == "__main__":

@@ -32,11 +32,11 @@ def get_words_from_document(document,
     :param tab: whether to use '\\\\t' to split words
     :return: word list obtained from document
     """
-    if token_func:
-        words = token_func(document)
-    else:
-        words = split_on_whitespace(document, new_line, tab)
-    return words
+    return (
+        token_func(document)
+        if token_func
+        else split_on_whitespace(document, new_line, tab)
+    )
 
 
 def strip(document, strip_characters):
@@ -63,8 +63,7 @@ def strip(document, strip_characters):
             end_ind -= 1
         else:
             break
-    document_stripped = document[beg_ind:end_ind]
-    return document_stripped
+    return document[beg_ind:end_ind]
 
 
 def words_augmentation(words, group_size, join_char):
@@ -77,11 +76,10 @@ def words_augmentation(words, group_size, join_char):
     :param join_char: characters to be added between word group
     :return: word list after augment
     """
-    augmentation = [
-        join_char.join(words[i:i + group_size])
+    return [
+        join_char.join(words[i : i + group_size])
         for i in range(len(words) - group_size + 1)
     ]
-    return augmentation
 
 
 def words_refinement(words,

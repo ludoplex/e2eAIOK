@@ -24,14 +24,16 @@ class TabularPipeline(BasePipeline):
         # self.y: target label
         # self.pipeline: a direct graph to store the operation
         super().__init__()
-        if isinstance(dataset, pd.DataFrame):
+        if (
+            isinstance(dataset, pd.DataFrame)
+            or not isinstance(dataset, list)
+            and not isinstance(dataset, dict)
+        ):
             self.dataset = {'main_table': dataset}
         elif isinstance(dataset, list):
-            self.dataset = dict((idx, data) for idx, data in enumerate(dataset))
-        elif isinstance(dataset, dict):
-            self.dataset = dataset
+            self.dataset = dict(enumerate(dataset))
         else:
-            self.dataset = {'main_table': dataset}
+            self.dataset = dataset
         main_table = None
         input_is_path = False
         if isinstance(label, str):    
@@ -53,13 +55,13 @@ class TabularPipeline(BasePipeline):
         if not main_table:
             raise ValueError(f"label {label} is not found in dataset")
         self.main_table = main_table
-        
+
         # Set properties for BasePipeline
         if not input_is_path:
             original_data = self.dataset[main_table]
         else:
             original_data = sample_read(self.dataset[main_table])
-        
+
         self.feature_columns = [i for i in original_data.columns if i != self.y]
         #feature_data = original_data[self.feature_columns]
         self.exclude_op = exclude_op
@@ -71,13 +73,13 @@ class TabularPipeline(BasePipeline):
         else:
             op = 'DataLoader'
             config = {'table_name': main_table, 'file_path': self.dataset[main_table]}
-        
+
         cur_id = 0
         self.pipeline[cur_id] = Operation(
             cur_id, None, output = DataFrameSchema(original_data), op = op, config = config)
 
         if len(self.dataset) > 1:
-            self.supplementary = dict((k, v) for k, v in self.dataset.items() if k != main_table)
+            self.supplementary = {k: v for k, v in self.dataset.items() if k != main_table}
         else:
             self.supplementary = None
 
@@ -85,21 +87,18 @@ class TabularPipeline(BasePipeline):
         leaf_idx = self.pipeline.convert_to_node_chain()[-1]
         pa_schema = self.pipeline[leaf_idx].output
         label_list = [pa_field.name for pa_field in pa_schema if pa_field.is_label]
-        if len(label_list) > 0:
-            self.y = label_list[0]
-        else:
-            self.y = None
+        self.y = label_list[0] if label_list else None
      
     def fit_analyze(self, *args, **kwargs):
         child = list(self.pipeline.keys())[-1]
         max_id = child
         to_run = []
         for i in range(len(self.generators)):
-            for generator in self.generators[i]:
-                if generator.__class__.__name__ in self.exclude_op:
-                    continue
-                to_run.append(generator)
-        
+            to_run.extend(
+                generator
+                for generator in self.generators[i]
+                if generator.__class__.__name__ not in self.exclude_op
+            )
         pbar = tqdm(to_run, total=len(to_run))
         for generator in pbar:
             pbar.set_description(f"{generator.__class__.__name__}")
@@ -114,42 +113,45 @@ class TabularPipeline(BasePipeline):
             leaf_child = pipeline_chain[-1]
         else:
             leaf_child = self.pipeline[self.transformed_end_idx].children[0]
-        
+
         if not isinstance(config, dict):
             op = config
             config = {
                 "children": [leaf_child],
                 "inline_function": op,
-            }        
+            }
         children = config["children"]
         inline_function = config["inline_function"]
-        
+
         if not isinstance(children, list):
             children = [children]
-        
+
         # get current max operator id
         max_idx = self.pipeline.get_max_idx()
         cur_idx = max_idx + 1
-        
+
         config = {
             "func_name": inline_function,
         }
         self.pipeline[cur_idx] = Operation(
             cur_idx, children, output = None, op = "custom_operator", config = config)
-        
+
         # we need to find nexts
         for to_replace_child in children:
-            next = []
-            for idx in pipeline_chain:
-                if self.pipeline[idx].children and to_replace_child in self.pipeline[idx].children:
-                    next.append(idx)
+            next = [
+                idx
+                for idx in pipeline_chain
+                if self.pipeline[idx].children
+                and to_replace_child in self.pipeline[idx].children
+            ]
             for idx in next:
                 # replace next's children with new added operator
                 children_in_next = self.pipeline[idx].children
-                found = {}
-                for id, child in enumerate(children_in_next):
-                    if child == to_replace_child:
-                        found[id] = cur_idx
+                found = {
+                    id: cur_idx
+                    for id, child in enumerate(children_in_next)
+                    if child == to_replace_child
+                }
                 for k, v in found.items():
                     self.pipeline[idx].children[k] = v
                     
@@ -162,7 +164,7 @@ class TabularPipeline(BasePipeline):
 
         # execute
         if engine_type == 'pandas':
-            with Timer(f"execute with pandas"):
+            with Timer("execute with pandas"):
                 start = False
                 for op in executable_sequence:
                     if start_op_idx == -1 or op.op.idx == start_op_idx:
@@ -183,7 +185,7 @@ class TabularPipeline(BasePipeline):
             else:
                 df = executable_pipeline[transformed_end].cache
         elif engine_type == 'spark':
-            with Timer(f"execute with spark"):
+            with Timer("execute with spark"):
                 start = False
                 for op in executable_sequence:
                     if start_op_idx == -1 or op.op.idx == start_op_idx:
@@ -213,7 +215,7 @@ class TabularPipeline(BasePipeline):
                     df = ret
         else:
             raise NotImplementedError('pipeline only support pandas and spark as engine')
-        
+
         # fetch result
         return df
 

@@ -23,5 +23,7 @@ class TypeInferOperation(BaseOperation):
         return type_infer
     
     def get_function_spark(self, rdp, trans_type = 'fit_transform'):
-        raise NotImplementedError(f"TypeInferOperation spark dataframe is not supported yet.")
+        raise NotImplementedError(
+            "TypeInferOperation spark dataframe is not supported yet."
+        )
 AUTOFEOPERATORS.register(TypeInferOperation, "type_infer")

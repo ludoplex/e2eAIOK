@@ -38,7 +38,7 @@ class Operation:
         self.cols = cols
 
     def describe(self):
-        return "%s(%s)" % (self.op_name, ','.join(self.cols))
+        return f"{self.op_name}({','.join(self.cols)})"
 
     def collect(self, df):
         raise NotImplementedError(self.op_name + "doesn't support collect")
@@ -58,13 +58,11 @@ class Operation:
                         dict_name = v
                     else:
                         dict_df = v
-                if str(dict_name) == str(name):
-                    return dict_df
             else:
                 dict_df = i['dict']
                 dict_name = i['col_name']
-                if str(dict_name) == str(name):
-                    return dict_df
+            if str(dict_name) == str(name):
+                return dict_df
         return None
 
     def get_colname_dict_as_tuple(self, i):
@@ -74,11 +72,11 @@ class Operation:
                     dict_name = v
                 else:
                     dict_df = v
-            return (dict_name, dict_df)
         else:
             dict_df = i['dict']
             dict_name = i['col_name']
-            return (dict_name, dict_df)
+
+        return (dict_name, dict_df)
 
     def generate_dict_dfs(self, df, spark=None, cache_path=None, withCount=True, isParquet=True, enable_gazelle=False):
         # at least we can cache here to make read much faster
@@ -106,25 +104,20 @@ class Operation:
             else:
                 df.write.format("parquet").mode("overwrite").save(cache_path)
                 df = spark.read.parquet(cache_path)
-            i = 0
-            for col_name in cols:
+            for i, col_name in enumerate(cols):
                 dict_df = df.filter('column_id == %d' % i).drop('column_id')
                 if withCount:
                     self.dict_dfs.append({'col_name': col_name, 'dict': dict_df})
                 else:
                     self.dict_dfs.append(
                         {'col_name': col_name, 'dict': dict_df.drop('count')})
-                i += 1
             return self.dict_dfs
         # below is when input is parquet
         for i in self.cols:
             col_name = ""
             if isinstance(i, dict):
                 # This is more those need to union columns
-                if 'col_name' in i:
-                    col_name = i['col_name']
-                else:
-                    col_name = 'union_dict'
+                col_name = i['col_name'] if 'col_name' in i else 'union_dict'
                 src_cols = []
                 if 'src_cols' in i:
                     src_cols.extend(i['src_cols'])
@@ -149,7 +142,7 @@ class Operation:
             if self.bucketSize == -1:
                 if self.id_by_python_dict:
                     dict_df = dict_df.distinct()
-                    dict_data = dict((row['dict_col'], 1) for row in dict_df.collect())
+                    dict_data = {row['dict_col']: 1 for row in dict_df.collect()}
                     for i, x in enumerate(dict_data):
                         dict_data[x] = i
                     dict_df = convert_to_spark_df(dict_data, df.spark)
@@ -184,22 +177,24 @@ class Operation:
         udf_cols = []
         total_small_cols_num_rows = 0
         total_estimated_shuffled_size = 0
-        df_estimzate_size_per_row = sum([get_estimate_size_of_dtype(dtype) for _, dtype in df.dtypes])
+        df_estimzate_size_per_row = sum(
+            get_estimate_size_of_dtype(dtype) for _, dtype in df.dtypes
+        )
         df_estimated_size = df_estimzate_size_per_row * df_cnt
         # Below threshold is maximum BHJ numRows, 4 means maximum 25% memory to cache Broadcast data, and 20 means we estimate each row has 20 bytes.
         if enable_gazelle:
             threshold = per_core_memory_size / estimated_bytes
-            threshold_per_bhj = threshold if threshold <= 100000000 else 100000000
+            threshold_per_bhj = min(threshold, 100000000)
         else:
             threshold = per_core_memory_size / 4 / estimated_bytes
-            threshold_per_bhj = threshold if threshold <= 30000000 else 30000000
+            threshold_per_bhj = min(threshold, 30000000)
         flush_threshold = flush_threshold * 0.8
         # print("[DEBUG] bhj total threshold is %.3f M rows, one bhj threshold is %.3f M rows, flush_threshold is %.3f GB" % (threshold / 1000000, threshold_per_bhj/1000000, flush_threshold / 2**30))
         dict_dfs_with_cnt = []
         for i in dict_dfs:
             col_name, dict_df = self.get_colname_dict_as_tuple(i)
             found = False
-            if self.cols == None:
+            if self.cols is None:
                 found = True
             else:
                 for j in self.cols:
@@ -210,7 +205,9 @@ class Operation:
             if found == True:
               dict_df_cnt = dict_df.count()
               dict_dfs_with_cnt.append((col_name, dict_df, dict_df_cnt))
-        sorted_dict_dfs_with_cnt = [(col_name, dict_df, dict_df_cnt) for col_name, dict_df, dict_df_cnt in sorted(dict_dfs_with_cnt, key=lambda pair: pair[2])]
+        sorted_dict_dfs_with_cnt = list(
+            sorted(dict_dfs_with_cnt, key=lambda pair: pair[2])
+        )
         # for to_print in sorted_dict_dfs_with_cnt:
         #    print(to_print)
 
@@ -224,33 +221,25 @@ class Operation:
                 if ((total_estimated_shuffled_size + df_estimated_size) > flush_threshold):
                     # print("etstimated_to_shuffle_size for %s is %.3f GB, will do smj and spill to disk" % (str(col_name), df_estimated_size / 2**30))
                     huge_cols.append(col_name)
-                    smj_cols.append(col_name)
-                    long_cols.append(col_name)
                     total_estimated_shuffled_size = 0
                 else:
-                    # print("etstimated_to_shuffle_size for %s is %.3f GB, will do smj" % (str(col_name), df_estimated_size / 2**30))
-                    smj_cols.append(col_name)
-                    long_cols.append(col_name)
                     # if accumulate shuffle capacity may exceed maximum shuffle disk size, we should use hdfs instead
                     total_estimated_shuffled_size += df_estimated_size
+                long_cols.append(col_name)
+                smj_cols.append(col_name)
             else:
+                # print("%s will do udf" % (col_name))
+                total_small_cols_num_rows += dict_df_cnt
                 if self.doSplit:
-                    # print("%s will do udf" % (col_name))
-                    total_small_cols_num_rows += dict_df_cnt
                     udf_cols.append(col_name)
                 else:
-                    # print("%s will do bhj" % (col_name))
-                    total_small_cols_num_rows += dict_df_cnt
                     small_cols.append(col_name)
             df_estimated_size -= df_cnt * 6
         return (sorted_cols, {'short_dict': small_cols, 'long_dict': long_cols, 'huge_dict': huge_cols, 'udf': udf_cols, 'smj_dict': smj_cols})
 
     def check_scala_extension(self, spark):
         driverClassPath = spark.sparkContext.getConf().get('spark.driver.extraClassPath')
-        if driverClassPath == None or 'recdp' not in driverClassPath:
-            return False
-        else:
-            return True
+        return driverClassPath is not None and 'recdp' in driverClassPath
 
 
 class FeatureModification(Operation):
@@ -272,15 +261,13 @@ class FeatureModification(Operation):
 
     def describe(self):
         if self.op == 'udf':
-            f_cols = ["udf(%s)" % x for x in self.cols]
-            return "%s(%s)" % (self.op_name, ','.join(f_cols))
+            f_cols = [f"udf({x})" for x in self.cols]
         elif self.op == 'inline':
-            f_cols = ["modify(%s, %s)" % (x, y)
-                      for (x, y) in self.cols.items()]
-            return "%s(%s)" % (self.op_name, ','.join(f_cols))
+            f_cols = [f"modify({x}, {y})" for (x, y) in self.cols.items()]
         else:
-            f_cols = ["%s(%s)" % (self.op, x) for x in self.cols]
-            return "%s(%s)" % (self.op_name, ','.join(f_cols))
+            f_cols = [f"{self.op}({x})" for x in self.cols]
+
+        return f"{self.op_name}({','.join(f_cols)})"
 
     def process(self, df, spark, df_cnt, enable_scala=True, save_path="", per_core_memory_size=0, flush_threshold = 0, enable_gazelle=False):
         if self.op == 'udf':
@@ -315,17 +302,13 @@ class FeatureAdd(Operation):
 
     def describe(self):
         if self.op == 'udf':
-            f_cols = ["new_feature(%s, udf(%s))" % (x, y)
-                      for (x, y) in self.cols.items()]
-            return "%s(%s)" % (self.op_name, ','.join(f_cols))
+            f_cols = [f"new_feature({x}, udf({y}))" for (x, y) in self.cols.items()]
         elif self.op == 'inline':
-            f_cols = ["new_feature(%s, %s)" % (x, y)
-                      for (x, y) in self.cols.items()]
-            return "%s(%s)" % (self.op_name, ','.join(f_cols))
+            f_cols = [f"new_feature({x}, {y})" for (x, y) in self.cols.items()]
         else:
-            f_cols = ["new_feature(%s, %s(%s))" % (x, self.op, y)
-                      for (x, y) in self.cols.items()]
-            return "%s(%s)" % (self.op_name, ','.join(f_cols))
+            f_cols = [f"new_feature({x}, {self.op}({y}))" for (x, y) in self.cols.items()]
+
+        return f"{self.op_name}({','.join(f_cols)})"
 
     def process(self, df, spark, df_cnt, enable_scala=True, save_path="", per_core_memory_size=0, flush_threshold = 0, enable_gazelle=False):
         if self.op == 'udf':
@@ -336,7 +319,7 @@ class FeatureAdd(Operation):
                 try:
                     df = df.withColumn(after, eval(before))
                 except Exception as e:
-                    print("[ERROR]: inline script is %s" % before)
+                    print(f"[ERROR]: inline script is {before}")
                     raise e
         elif self.op == 'toInt':
             for after, before in self.cols.items():
@@ -361,7 +344,7 @@ class FillNA(Operation):
         self.default = default
 
     def process(self, df, spark, df_cnt, enable_scala=True, save_path="", per_core_memory_size=0, flush_threshold = 0, enable_gazelle=False):
-        return df.fillna(self.default, [i for i in self.cols])
+        return df.fillna(self.default, list(self.cols))
 
 
 class DropFeature(Operation):
@@ -421,7 +404,7 @@ class SelectFeature(Operation):
             if isinstance(i, str):
                 to_select.append(i)
             elif isinstance(i, tuple):
-                to_select.append("%s as %s" % (i[0], i[1]))
+                to_select.append(f"{i[0]} as {i[1]}")
 
         return df.selectExpr(*to_select)
 
@@ -474,7 +457,7 @@ class Categorify(Operation):
                 sorted_cols.append(col_name)
         else:
             sorted_cols, strategy = self.categorify_strategy_decision_maker(self.dict_dfs, df, df_cnt, per_core_memory_size, flush_threshold, enable_gazelle,self.estimated_bytes)
-        
+
         sorted_cols_pair = []
         pri_key_loaded = []
         for cn in sorted_cols:
@@ -523,17 +506,16 @@ class Categorify(Operation):
                     else:
                         last_method = 'shj'
                         df = self.categorify_with_join(df, dict_df, col_name, spark, save_path, method="shj", saveTmpToDisk=True, enable_gazelle=enable_gazelle)
+                elif 'smj_dict' in strategy and src_name in strategy['smj_dict']:
+                    last_method = 'smj'
+                    df = self.categorify_with_join(df, dict_df, col_name, spark, save_path, method="smj", saveTmpToDisk=False, enable_gazelle=enable_gazelle)
                 else:
-                    if 'smj_dict' in strategy and src_name in strategy['smj_dict']:
-                        last_method = 'smj'
-                        df = self.categorify_with_join(df, dict_df, col_name, spark, save_path, method="smj", saveTmpToDisk=False, enable_gazelle=enable_gazelle)
-                    else:
-                        last_method = 'shj'
-                        df = self.categorify_with_join(df, dict_df, col_name, spark, save_path, method="shj", saveTmpToDisk=False, enable_gazelle=enable_gazelle)
+                    last_method = 'shj'
+                    df = self.categorify_with_join(df, dict_df, col_name, spark, save_path, method="shj", saveTmpToDisk=False, enable_gazelle=enable_gazelle)
         # when last_method is BHJ, we should add a separator for spark wscg optimization
         if last_method == 'bhj' and not enable_gazelle and enable_scala:
             vspark = str(spark.version)
-            if not (vspark.startswith("3.1") or vspark.startswith("3.0")):
+            if not vspark.startswith("3.1") and not vspark.startswith("3.0"):
                 return df
             #print("Adding a CodegenSeparator to pure BHJ WSCG case")
             found = False
@@ -551,8 +533,8 @@ class Categorify(Operation):
                     found = True
                     break
             if found == False:
-                df = df.withColumn("CodegenSeparator", spk_func.expr(f"CodegenSeparator())"))
-    
+                df = df.withColumn("CodegenSeparator", spk_func.expr("CodegenSeparator())"))
+
         return df
 
     def get_col_tgt_src(self, i):
@@ -576,7 +558,11 @@ class Categorify(Operation):
             if x != '':
                 x_l = x.split(sep) if not isinstance(x, list) else x
                 for v in x_l:
-                    if v != '' and v in broadcast_data and (min_val == None or broadcast_data[v] < min_val):
+                    if (
+                        v != ''
+                        and v in broadcast_data
+                        and (min_val is None or broadcast_data[v] < min_val)
+                    ):
                         min_val = broadcast_data[v]
             return min_val
 
@@ -588,7 +574,7 @@ class Categorify(Operation):
                 for v in x_l:
                     if v != '' and v in broadcast_data:
                         val.append(broadcast_data[v])
-                if doSortForArray and len(val) > 0:
+                if doSortForArray and val:
                     val.sort()
             return val
 
@@ -599,7 +585,7 @@ class Categorify(Operation):
 
     def categorify_with_udf(self, df, dict_df, i, spark):
         #print("do %s to %s" % ("python_udf", i))
-        dict_data = dict((row['dict_col'], row['dict_col_id']) for row in dict_df.collect())
+        dict_data = {row['dict_col']: row['dict_col_id'] for row in dict_df.collect()}
         udf_impl = self.get_mapping_udf(dict_data, spark)
         df = df.withColumn(i, udf_impl(spk_func.col(i)))
         return df
@@ -714,7 +700,7 @@ class GenerateDictionary(Operation):
             dict_df = i['dict']
             dict_name = i['col_name']
             to_merge = self.find_dict(dict_name, to_merge_dict_dfs)
-            if to_merge == None:
+            if to_merge is None:
                 raise ValueError(
                     "Expect '%s' in merge_dicts.to_merge_dict_dfs, while find none")
             max_id_of_to_merge_row = to_merge.agg(
@@ -750,7 +736,7 @@ class ModelMerge(Operation):
         self.estimated_bytes=estimated_bytes
 
     def process(self, df, spark, df_cnt, enable_scala=True, save_path="", per_core_memory_size=0, flush_threshold = 0, enable_gazelle=False):
-        if self.dict_dfs == None:
+        if self.dict_dfs is None:
             raise NotImplementedError("process %s ")
         sorted_cols, strategy = self.categorify_strategy_decision_maker(self.dict_dfs, df, df_cnt, per_core_memory_size, flush_threshold, enable_gazelle,self.estimated_bytes)
 
@@ -761,19 +747,38 @@ class ModelMerge(Operation):
             if 'short_dict' in strategy and col_name in strategy['short_dict']:
                 df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=False, method='bhj', enable_gazelle=enable_gazelle)
         for col_name in sorted_cols:
-            dict_df = self.find_dict(col_name, self.dict_dfs) 
+            dict_df = self.find_dict(col_name, self.dict_dfs)
             # for huge dict, we will do shj seperately
             if 'long_dict' in strategy and col_name in strategy['long_dict']:
                 if 'huge_dict' in strategy and col_name in strategy['huge_dict']:
-                    if 'smj_dict' in strategy and col_name in strategy['smj_dict']:
-                        df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=True, method='smj', enable_gazelle=enable_gazelle)
-                    else:
-                        df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=True, method='shj', enable_gazelle=enable_gazelle)
+                    df = (
+                        self.merge_with_join(
+                            df,
+                            dict_df,
+                            col_name,
+                            spark,
+                            save_path,
+                            saveTmpToDisk=True,
+                            method='smj',
+                            enable_gazelle=enable_gazelle,
+                        )
+                        if 'smj_dict' in strategy
+                        and col_name in strategy['smj_dict']
+                        else self.merge_with_join(
+                            df,
+                            dict_df,
+                            col_name,
+                            spark,
+                            save_path,
+                            saveTmpToDisk=True,
+                            method='shj',
+                            enable_gazelle=enable_gazelle,
+                        )
+                    )
+                elif 'smj_dict' in strategy and col_name in strategy['smj_dict']:
+                    df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=False, method='smj', enable_gazelle=enable_gazelle)
                 else:
-                    if 'smj_dict' in strategy and col_name in strategy['smj_dict']:
-                        df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=False, method='smj', enable_gazelle=enable_gazelle)
-                    else:
-                        df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=False, method='shj', enable_gazelle=enable_gazelle)
+                    df = self.merge_with_join(df, dict_df, col_name, spark, save_path, saveTmpToDisk=False, method='shj', enable_gazelle=enable_gazelle)
         return df
 
     def merge_with_join(self, df, dict_df, i, spark, save_path, saveTmpToDisk=False, method='shj', enable_gazelle=False):
@@ -819,9 +824,7 @@ class NegativeSample(Operation):
             while True:
                 asin_neg_index = random.randint(0, asin_total_len - 1) #nosec
                 asin_neg = item_list[asin_neg_index]
-                if asin_neg == None or asin_neg == asin:
-                    continue
-                else:
+                if asin_neg not in [None, asin]:
                     break
             return [asin_neg, asin]
 
@@ -871,9 +874,7 @@ class NegativeFeature(Operation):
                     while True:
                         asin_neg_index = random.randint(0, asin_total_len - 1) #nosec
                         asin_neg = item_list[asin_neg_index]
-                        if asin_neg == None or asin_neg == asin:
-                            continue
-                        else:
+                        if asin_neg not in [None, asin]:
                             res.append(asin_neg)
                             break
                 return res
@@ -887,9 +888,7 @@ class NegativeFeature(Operation):
                 while True:
                     asin_neg_index = random.randint(0, asin_total_len - 1) #nosec
                     asin_neg = item_list[asin_neg_index]
-                    if asin_neg == None or asin_neg == asin:
-                        continue
-                    else:
+                    if asin_neg not in [None, asin]:
                         break
                 return asin_neg
 
@@ -949,7 +948,7 @@ class CollapseByHist(Operation):
         self.orderBy = orderBy
         self.minNumHist = minNumHist
         self.maxNumHist = maxNumHist
-        if by == None or (isinstance(by, list) and len(by) == 0):
+        if by is None or (isinstance(by, list) and len(by) == 0):
             raise ValueError("CollapseByHist expects input by should not None or Empty")
 
 

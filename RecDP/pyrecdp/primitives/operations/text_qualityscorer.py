@@ -117,7 +117,7 @@ def prepare_model(model_name, model_path=RECDP_MODELS_CACHE):
         udm = True
     else:
         # use prepared models we provided
-        model_name = '%s_quality_model' % model_name
+        model_name = f'{model_name}_quality_model'
         real_model_path = os.path.join(model_path, model_name)
     logger.info(f'Preparing scorer model in [{real_model_path}]...')
     if os.path.exists(real_model_path) and os.path.isdir(real_model_path):
@@ -306,10 +306,10 @@ class TextQualityScorer(BaseLLMOperation):
         if model == 'chinese':
             tokenizer = 'zh.sp.model'
             keep_method = 'label'
-        if model == 'code':
+        elif model == 'code':
             tokenizer = 'code.sp.model'
             keep_method = 'label'
-        if model == 'gpt3':
+        elif model == 'gpt3':
             tokenizer = None
             keep_method = 'gpt3'
         # load the quality classifier model

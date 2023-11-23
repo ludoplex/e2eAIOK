@@ -7,8 +7,7 @@ from pyrecdp.primitives.operations import JsonlReader, ParquetReader, PerfilePar
 def profanity_filter_spark(spark_df, threshold=0.0):
     from pyrecdp.primitives.operations import ProfanityFilter
     op = ProfanityFilter(threshold=threshold)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def profanity_filter(data_dir, out_dir, data_file_type="jsonl", threshold=0.0):

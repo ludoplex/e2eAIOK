@@ -61,9 +61,7 @@ class SpeedPerturb(torch.nn.Module):
 
         # Perform a random perturbation
         self.samp_index = torch.randint(len(self.speeds), (1,))[0]
-        perturbed_waveform = self.resamplers[self.samp_index](waveform)
-
-        return perturbed_waveform
+        return self.resamplers[self.samp_index](waveform)
 
 
 class Resample(torch.nn.Module):
@@ -289,11 +287,7 @@ class Resample(torch.nn.Module):
         if last_output_samp * ticks_per_output_period == interval_length:
             last_output_samp -= 1
 
-        # First output-sample index is zero, so the number of output samples
-        # is the last output-sample plus one.
-        num_output_samp = last_output_samp + 1
-
-        return num_output_samp
+        return last_output_samp + 1
 
     def _indices_and_weights(self, waveforms):
         """Based on LinearResample::SetIndexesAndWeights

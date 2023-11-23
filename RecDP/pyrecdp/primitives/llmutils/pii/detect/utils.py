@@ -15,17 +15,17 @@ class PIIEntityType(Enum):
 
     @classmethod
     def parse(cls, entity):
-        if "name" == entity:
+        if entity == "name":
             return PIIEntityType.NAME
-        elif "password" == entity:
+        elif entity == "password":
             return PIIEntityType.PASSWORD
-        elif "email" == entity:
+        elif entity == "email":
             return PIIEntityType.EMAIL
-        elif "phone_number" == entity:
+        elif entity == "phone_number":
             return PIIEntityType.PHONE_NUMBER
-        elif "ip" == entity:
+        elif entity == "ip":
             return PIIEntityType.PHONE_NUMBER
-        elif "key" == entity:
+        elif entity == "key":
             return PIIEntityType.KEY
         else:
             raise NotImplementedError(f" entity type {entity} is not supported!")

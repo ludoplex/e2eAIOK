@@ -20,8 +20,7 @@ import time
 def convert_listoflist_to_spk(components, spark):
     # convert components to spark df
     R = Row('component')
-    components_sdf = spark.createDataFrame([R(c) for c in components])
-    return components_sdf
+    return spark.createDataFrame([R(c) for c in components])
 
 def read_parquet(data_files, spark, rowid = False):
     first = True
@@ -106,8 +105,7 @@ def global_unique_id(df, col_name):
 def get_data_files(data_dir):
     files = sorted(os.listdir(data_dir))
     files = list(filter(lambda file_: '.jsonl' in file_, files))
-    files = [os.path.join(data_dir, i) for i in files]
-    return files
+    return [os.path.join(data_dir, i) for i in files]
 
 def sub_task_per_folder(file_list):
     sub_task = {}
@@ -129,11 +127,10 @@ def get_target_file_list_from_local(data_dir, file_type):
     exitcode = proc.returncode
     if exitcode != 0:
         return []
-    else:
-        ret = stdout.decode("utf-8").split('\n')[:-1]
-        ret = [i.replace(data_dir, "") for i in ret]
-        ret = [i[1:] if i[0] == '/' else i for i in ret]
-        return ret
+    ret = stdout.decode("utf-8").split('\n')[:-1]
+    ret = [i.replace(data_dir, "") for i in ret]
+    ret = [i[1:] if i[0] == '/' else i for i in ret]
+    return ret
     
 def get_target_file_list_from_hdfs(data_dir, file_type):
     cmd = ["hdfs", "dfs",  "-find", data_dir, "-name", f"*.{file_type}"]
@@ -142,11 +139,10 @@ def get_target_file_list_from_hdfs(data_dir, file_type):
     exitcode = proc.returncode
     if exitcode != 0:
         return []
-    else:
-        ret = stdout.decode("utf-8").split('\n')[:-1]
-        ret = [i.replace(data_dir, "") for i in ret]
-        ret = [i[1:] if i[0] == '/' else i for i in ret]
-        return ret
+    ret = stdout.decode("utf-8").split('\n')[:-1]
+    ret = [i.replace(data_dir, "") for i in ret]
+    ret = [i[1:] if i[0] == '/' else i for i in ret]
+    return ret
     
 def get_target_file_list(data_dir, file_type, file_system_prefix = ""):
     if file_system_prefix == "file://":
@@ -158,7 +154,7 @@ def get_target_file_list(data_dir, file_type, file_system_prefix = ""):
         file_list = get_target_file_list_from_local(data_dir, file_type)
     except:
         file_list = []
-    if len(file_list) == 0:
+    if not file_list:
         try:
             file_list = get_target_file_list_from_hdfs(data_dir, file_type)
         except:
@@ -197,8 +193,7 @@ def clean_str(s):
     except:
         s = ""
     s = s.lower().translate(str.maketrans("", "", string.punctuation))
-    s = re.sub(r"\s+", " ", s.strip())
-    return s
+    return re.sub(r"\s+", " ", s.strip())
   
 def get_llmutils_home():
     return os.path.abspath(os.path.dirname(__file__))

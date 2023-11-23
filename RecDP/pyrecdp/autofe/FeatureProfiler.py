@@ -67,22 +67,19 @@ class FeatureProfiler(TabularPipeline):
         X = DataFrameAPI().instiate(self.dataset[self.main_table])
         sampled_data = X.may_sample()
 
-        if not self.y is None:
+        if self.y is not None:
             self.pipeline[child].output.append(SeriesSchema(sampled_data[self.y]))
 
         # firstly, call data profiler to analyze data
         for generator in self.data_profiler:
             self.pipeline, child, max_id = generator.fit_prepare(self.pipeline, [child], max_id, sampled_data, self.y)
-            
+
         child, max_id = super().fit_analyze(*args, **kwargs)
     
     def visualize_analyze(self, engine_type = 'pandas', display = True):
         feature_data = self.fit_transform(engine_type)
-        if not self.y is None:
-            y_sample = self.dataset[self.main_table][self.y]
-        else:
-            y_sample = None
+        y_sample = None if self.y is None else self.dataset[self.main_table][self.y]
         self.data_stats = StatisticsFeatureGenerator().update_feature_statistics(feature_data, y_sample)
         if not self.data_stats:
-            raise NotImplementedError("We didn't detect data statistics for thiis data")            
+            raise NotImplementedError("We didn't detect data statistics for thiis data")
         return FeatureVisulizer(self.data_stats)

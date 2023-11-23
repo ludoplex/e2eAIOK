@@ -16,10 +16,7 @@ def prepare_func_filter_by_badwords(language="en"):
 
     def check_badwords(text):
         found = re.search(bad_words_pattern, text)
-        if found:
-            return False
-        else:
-            return True
+        return not found
 
     return check_badwords
 
@@ -36,8 +33,7 @@ class BadwordsFilter(BaseFilter):
         self.language = language
 
     def get_compute_func(self, *args, **kwargs):
-        func = prepare_func_filter_by_badwords(self.language)
-        return func
+        return prepare_func_filter_by_badwords(self.language)
 
 
 LLMOPERATORS.register(BadwordsFilter)

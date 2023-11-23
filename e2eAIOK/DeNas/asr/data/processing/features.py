@@ -163,9 +163,7 @@ def spectral_magnitude(stft, power=1, log=False, eps=1e-14):
         spectr = spectr + eps
     spectr = spectr.pow(power)
 
-    if log:
-        return torch.log(spectr + eps)
-    return spectr
+    return torch.log(spectr + eps) if log else spectr
 
 
 class Filterbank(torch.nn.Module):
@@ -251,11 +249,7 @@ class Filterbank(torch.nn.Module):
         self.param_change_factor = param_change_factor
         self.param_rand_factor = param_rand_factor
 
-        if self.power_spectrogram == 2:
-            self.multiplier = 10
-        else:
-            self.multiplier = 20
-
+        self.multiplier = 10 if self.power_spectrogram == 2 else 20
         # Make sure f_min < f_max
         if self.f_min >= self.f_max:
             err_msg = "Require f_min: %f < f_max: %f" % (
@@ -406,11 +400,7 @@ class Filterbank(torch.nn.Module):
 
         # Adding zeros for negative values
         zero = torch.zeros(1, device=self.device_inp)
-        fbank_matrix = torch.max(
-            zero, torch.min(left_side, right_side)
-        ).transpose(0, 1)
-
-        return fbank_matrix
+        return torch.max(zero, torch.min(left_side, right_side)).transpose(0, 1)
 
     def _rectangular_filters(self, all_freqs, f_central, band):
         """Returns fbank matrix using rectangular filters.
@@ -433,9 +423,7 @@ class Filterbank(torch.nn.Module):
         left_side = right_size = all_freqs.ge(low_hz)
         right_size = all_freqs.le(high_hz)
 
-        fbank_matrix = (left_side * right_size).float().transpose(0, 1)
-
-        return fbank_matrix
+        return (left_side * right_size).float().transpose(0, 1)
 
     def _gaussian_filters(
         self, all_freqs, f_central, band, smooth_factor=torch.tensor(2)
@@ -454,11 +442,9 @@ class Filterbank(torch.nn.Module):
             Smoothing factor of the gaussian filter. It can be used to employ
             sharper or flatter filters.
         """
-        fbank_matrix = torch.exp(
+        return torch.exp(
             -0.5 * ((all_freqs - f_central) / (band / smooth_factor)) ** 2
         ).transpose(0, 1)
-
-        return fbank_matrix
 
     def _create_fbank_matrix(self, f_central_mat, band_mat):
         """Returns fbank matrix to use for averaging the spectrum with
@@ -475,21 +461,19 @@ class Filterbank(torch.nn.Module):
             sharper or flatter filters.
         """
         if self.filter_shape == "triangular":
-            fbank_matrix = self._triangular_filters(
+            return self._triangular_filters(
                 self.all_freqs_mat, f_central_mat, band_mat
             )
 
         elif self.filter_shape == "rectangular":
-            fbank_matrix = self._rectangular_filters(
+            return self._rectangular_filters(
                 self.all_freqs_mat, f_central_mat, band_mat
             )
 
         else:
-            fbank_matrix = self._gaussian_filters(
+            return self._gaussian_filters(
                 self.all_freqs_mat, f_central_mat, band_mat
             )
-
-        return fbank_matrix
 
     def _amplitude_to_DB(self, x):
         """Converts  linear-FBANKs to log-FBANKs.
@@ -749,23 +733,16 @@ class InputNormalization(torch.nn.Module):
                 spk_id = int(spk_ids[snt_id][0])
 
                 if self.training:
-                    if spk_id not in self.spk_dict_mean:
-
-                        # Initialization of the dictionary
-                        self.spk_dict_mean[spk_id] = current_mean
-                        self.spk_dict_std[spk_id] = current_std
-                        self.spk_dict_count[spk_id] = 1
-
-                    else:
+                    if spk_id in self.spk_dict_mean:
                         self.spk_dict_count[spk_id] = (
                             self.spk_dict_count[spk_id] + 1
                         )
 
-                        if self.avg_factor is None:
-                            self.weight = 1 / self.spk_dict_count[spk_id]
-                        else:
-                            self.weight = self.avg_factor
-
+                        self.weight = (
+                            1 / self.spk_dict_count[spk_id]
+                            if self.avg_factor is None
+                            else self.avg_factor
+                        )
                         self.spk_dict_mean[spk_id] = (
                             (1 - self.weight) * self.spk_dict_mean[spk_id]
                             + self.weight * current_mean
@@ -778,52 +755,58 @@ class InputNormalization(torch.nn.Module):
                         self.spk_dict_mean[spk_id].detach()
                         self.spk_dict_std[spk_id].detach()
 
+                    else:
+
+                        # Initialization of the dictionary
+                        self.spk_dict_mean[spk_id] = current_mean
+                        self.spk_dict_std[spk_id] = current_std
+                        self.spk_dict_count[spk_id] = 1
+
+                    speaker_mean = self.spk_dict_mean[spk_id].data
+                    speaker_std = self.spk_dict_std[spk_id].data
+                elif spk_id in self.spk_dict_mean:
                     speaker_mean = self.spk_dict_mean[spk_id].data
                     speaker_std = self.spk_dict_std[spk_id].data
                 else:
-                    if spk_id in self.spk_dict_mean:
-                        speaker_mean = self.spk_dict_mean[spk_id].data
-                        speaker_std = self.spk_dict_std[spk_id].data
-                    else:
-                        speaker_mean = current_mean.data
-                        speaker_std = current_std.data
+                    speaker_mean = current_mean.data
+                    speaker_std = current_std.data
 
                 x[snt_id] = (x[snt_id] - speaker_mean) / speaker_std
 
-        if self.norm_type == "batch" or self.norm_type == "global":
+        if self.norm_type in ["batch", "global"]:
             current_mean = torch.mean(torch.stack(current_means), dim=0)
             current_std = torch.mean(torch.stack(current_stds), dim=0)
 
-            if self.norm_type == "batch":
-                x = (x - current_mean.data) / (current_std.data)
+        if self.norm_type == "batch":
+            x = (x - current_mean.data) / (current_std.data)
 
-            if self.norm_type == "global":
+        if self.norm_type == "global":
 
-                if self.training:
-                    if self.count == 0:
-                        self.glob_mean = current_mean
-                        self.glob_std = current_std
+            if self.training:
+                if self.count == 0:
+                    self.glob_mean = current_mean
+                    self.glob_std = current_std
 
-                    elif epoch < self.update_until_epoch:
-                        if self.avg_factor is None:
-                            self.weight = 1 / (self.count + 1)
-                        else:
-                            self.weight = self.avg_factor
+                elif epoch < self.update_until_epoch:
+                    if self.avg_factor is None:
+                        self.weight = 1 / (self.count + 1)
+                    else:
+                        self.weight = self.avg_factor
 
-                        self.glob_mean = (
-                            1 - self.weight
-                        ) * self.glob_mean + self.weight * current_mean
+                    self.glob_mean = (
+                        1 - self.weight
+                    ) * self.glob_mean + self.weight * current_mean
 
-                        self.glob_std = (
-                            1 - self.weight
-                        ) * self.glob_std + self.weight * current_std
+                    self.glob_std = (
+                        1 - self.weight
+                    ) * self.glob_std + self.weight * current_std
 
-                    self.glob_mean.detach()
-                    self.glob_std.detach()
+                self.glob_mean.detach()
+                self.glob_std.detach()
 
-                    self.count = self.count + 1
+                self.count = self.count + 1
 
-                x = (x - self.glob_mean.data) / (self.glob_std.data)
+            x = (x - self.glob_mean.data) / (self.glob_std.data)
 
         return x
 
@@ -857,15 +840,14 @@ class InputNormalization(torch.nn.Module):
     def _statistics_dict(self):
         """Fills the dictionary containing the normalization statistics.
         """
-        state = {}
-        state["count"] = self.count
-        state["glob_mean"] = self.glob_mean
-        state["glob_std"] = self.glob_std
-        state["spk_dict_mean"] = self.spk_dict_mean
-        state["spk_dict_std"] = self.spk_dict_std
-        state["spk_dict_count"] = self.spk_dict_count
-
-        return state
+        return {
+            "count": self.count,
+            "glob_mean": self.glob_mean,
+            "glob_std": self.glob_std,
+            "spk_dict_mean": self.spk_dict_mean,
+            "spk_dict_std": self.spk_dict_std,
+            "spk_dict_count": self.spk_dict_count,
+        }
 
     def _load_statistics_dict(self, state):
         """Loads the dictionary containing the statistics.
@@ -876,13 +858,8 @@ class InputNormalization(torch.nn.Module):
             A dictionary containing the normalization statistics.
         """
         self.count = state["count"]
-        if isinstance(state["glob_mean"], int):
-            self.glob_mean = state["glob_mean"]
-            self.glob_std = state["glob_std"]
-        else:
-            self.glob_mean = state["glob_mean"]  # .to(self.device_inp)
-            self.glob_std = state["glob_std"]  # .to(self.device_inp)
-
+        self.glob_mean = state["glob_mean"]
+        self.glob_std = state["glob_std"]
         # Loading the spk_dict_mean in the right device
         self.spk_dict_mean = {}
         for spk in state["spk_dict_mean"]:

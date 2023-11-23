@@ -21,10 +21,9 @@ class CategoryFeatureGenerator(super_class):
                 feature_in_out[feature] = (f"{folder}/{feature}_categorify_dict", out_schema.name)
                 is_useful = True
                 ret_pa_schema.append(out_schema)
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = feature_in_out
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'categorify', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        config = feature_in_out
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_pa_schema, op = 'categorify', config = config)
+        return pipeline, cur_idx, cur_idx

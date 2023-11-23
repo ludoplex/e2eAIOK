@@ -53,12 +53,8 @@ def generate_connected_components_py(rows):
     components, n_components = find_connected_components(G)
 
     reversed_mapper = {value: key for key, value in mapper.items()}
-    
-    reversed_components = []
-    for component in components:
-        reversed_components.append([reversed_mapper[i] for i in component])
-    
-    return reversed_components
+
+    return [[reversed_mapper[i] for i in component] for component in components]
     
 def generate_connected_components_mp(args):
     files = glob(f"{args.input_dir}/*")

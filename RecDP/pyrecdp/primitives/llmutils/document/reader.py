@@ -29,11 +29,10 @@ class FileBaseReader(DocumentReader, ABC):
     def load(self) -> List[Document]:
         docs = self.load_file(self.file)
         docs = list(filter(lambda d: (d.text.strip() != ""), docs))
-        if self.single_text_per_document:
-            text = "\n".join([doc.text for doc in docs])
-            return [Document(text=text, metadata=self.get_metadata())]
-        else:
+        if not self.single_text_per_document:
             return docs
+        text = "\n".join([doc.text for doc in docs])
+        return [Document(text=text, metadata=self.get_metadata())]
 
     @abstractmethod
     def load_file(self, file: Path) -> List[Document]:
@@ -271,11 +270,10 @@ class DirectoryReader(DocumentReader):
                     loader = UnstructuredFileLoader(str(input_file))
                     docs = [Document(text=doc.text, metadata=doc.metadata) for doc in loader.load()]
                     docs = list(filter(lambda d: (d.pa.strip() != ""), docs))
-                    if self.single_text_per_document:
-                        text = "\n".join([doc.text for doc in docs])
-                        return [Document(text=text, metadata={"source": str(input_file)})]
-                    else:
+                    if not self.single_text_per_document:
                         return docs
+                    text = "\n".join([doc.text for doc in docs])
+                    return [Document(text=text, metadata={"source": str(input_file)})]
             else:
                 logger.info(f"Skip loading file {input_file!s}: file suffix {file_suffix} is not supported")
                 return []

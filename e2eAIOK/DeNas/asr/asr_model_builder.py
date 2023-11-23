@@ -25,7 +25,6 @@ class ASRModelBuilder(BaseModelBuilder):
         return depth, mlp_ratio, num_heads, embed_dim
 
     def init_model(self, hparams):
-        modules = {}
         cnn = ConvolutionFrontEnd(
             input_shape = hparams["input_shape"],
             num_blocks = hparams["num_blocks"],
@@ -52,14 +51,14 @@ class ASRModelBuilder(BaseModelBuilder):
         ctc_lin = Linear(input_size=hparams["d_model"], n_neurons=hparams["output_neurons"])
         seq_lin = Linear(input_size=hparams["d_model"], n_neurons=hparams["output_neurons"])
         normalize = InputNormalization(norm_type="global", update_until_epoch=4)
-        modules["CNN"] = cnn
-        modules["Transformer"] = transformer
-        modules["seq_lin"] = seq_lin
-        modules["ctc_lin"] = ctc_lin
-        modules["normalize"] = normalize
-
-        model = torch.nn.ModuleDict(modules)
-        return model
+        modules = {
+            "CNN": cnn,
+            "Transformer": transformer,
+            "seq_lin": seq_lin,
+            "ctc_lin": ctc_lin,
+            "normalize": normalize,
+        }
+        return torch.nn.ModuleDict(modules)
 
     def create_model(self, hparams):
         model = self.init_model(hparams)

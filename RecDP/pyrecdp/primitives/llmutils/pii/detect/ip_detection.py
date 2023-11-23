@@ -51,11 +51,7 @@ ip_pattern = regex.compile(
 
 
 def matches_date_pattern(matched_str):
-    # Screen out date false positives
-    for year_regex in year_patterns:
-        if year_regex.match(matched_str):
-            return True
-    return False
+    return any(year_regex.match(matched_str) for year_regex in year_patterns)
 
 
 def ip_has_digit(matched_str):
@@ -70,8 +66,8 @@ def filter_versions(matched_str, context):
     # count occurrence of dots 
     dot_count = matched_str.count('.')
     exclude = (dot_count == 3 and len(matched_str) == 7)
-    if exclude:
-        if "dns" in context.lower() or "server" in context.lower():
+    if "dns" in context.lower() or "server" in context.lower():
+        if exclude:
             return False
     return exclude
 
@@ -109,14 +105,16 @@ def detect_ip(content):
             # setup outputs
             value = match.group(1)
             start, end = match.span(1)
-            if value:
-                # Filter out false positive IPs
-                if not ip_has_digit(value):
-                    continue
-                if matches_date_pattern(value):
-                    continue
-                if filter_versions(value, content[start - 100:end + 100]) or not_ip_address(value):
-                    continue
+            if not value:
+                raise ValueError("No match found inside groups")
+            # Filter out false positive IPs
+            if not ip_has_digit(value):
+                continue
+            if matches_date_pattern(value):
+                continue
+            if not filter_versions(
+                value, content[start - 100 : end + 100]
+            ) and not not_ip_address(value):
                 # combine if conditions in one
 
                 matches.append(
@@ -127,6 +125,4 @@ def detect_ip(content):
                         "end": end,
                     }
                 )
-            else:
-                raise ValueError("No match found inside groups")
     return matches

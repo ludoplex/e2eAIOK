@@ -27,13 +27,22 @@ def find_root_verb_and_its_dobj(tree_root):
     """
     # first check if the current node and its children satisfy the condition
     if tree_root.pos_ == 'VERB':
-        for child in tree_root.children:
-            if child.dep_ == 'dobj' and child.pos_ == 'NOUN':
-                return tree_root.lemma_ if len(
-                    tree_root.lemma_) else tree_root.text, child.lemma_ if len(
-                    child.lemma_) else child.text
-        return tree_root.lemma_ if len(
-            tree_root.lemma_) else tree_root.text, None
+        return next(
+            (
+                (
+                    tree_root.lemma_
+                    if len(tree_root.lemma_)
+                    else tree_root.text,
+                    child.lemma_ if len(child.lemma_) else child.text,
+                )
+                for child in tree_root.children
+                if child.dep_ == 'dobj' and child.pos_ == 'NOUN'
+            ),
+            (
+                tree_root.lemma_ if len(tree_root.lemma_) else tree_root.text,
+                None,
+            ),
+        )
     # if not, check its children
     for child in tree_root.children:
         return find_root_verb_and_its_dobj(child)
@@ -118,8 +127,9 @@ class DiversityAnalysis:
                     verb_noun_pairs = find_root_verb_and_its_dobj_in_string(
                         diversity_model, sample, first_sent=first_sent_flag)
                 except Exception as e:
-                    print(str(e))
+                    print(e)
                 return verb_noun_pairs
+
 
 
             operator = udf(find_verb_noun_spark, schema)
@@ -138,7 +148,7 @@ class DiversityAnalysis:
                     nlp = copy.deepcopy(diversity_model)
                     verb, noun = find_root_verb_and_its_dobj_in_string(nlp, sample)
                 except Exception as e:
-                    print(str(e))
+                    print(e)
                     verb, noun = None, None
                 return {'verb': verb, 'noun': noun}
 
@@ -187,9 +197,7 @@ class DiversityAnalysis:
         """
         # get the lexical tree analysis result
         pdf = self.compute(lang_or_model=lang_or_model)
-        # get the result of diversity analysis
-        df = self.get_diversity(pdf, **postproc_kwarg)
-        return df
+        return self.get_diversity(pdf, **postproc_kwarg)
 
 
 class TextDiversityIndicate(BaseLLMOperation):

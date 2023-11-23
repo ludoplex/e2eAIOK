@@ -24,8 +24,7 @@ def drop_patients_with_low_entries(df, grpby_col, min_record_per_patient = 5):
     """
     t = df.groupby(grpby_col).size().to_frame('Count').reset_index()
     selected_patients = t[t.Count >= min_record_per_patient][grpby_col]
-    res = df[df[grpby_col].isin(selected_patients)]
-    return res
+    return df[df[grpby_col].isin(selected_patients)]
 
 
 def get_list_of_septic_non_septic_patients(df, patient_id, label):
@@ -127,7 +126,9 @@ def describe_data(df, patient_id, label):
     print("The shape of the Raw input data is: ", df.shape)
     patients_affected, non_affected_patients = get_list_of_septic_non_septic_patients(df, patient_id, label)
     print("\nTotal number of patients: ", len(patients_affected) + len(non_affected_patients))
-    print("Total patients affected: {} \n  Total  Patients not affected : {}".format(len(patients_affected), len(non_affected_patients)))
+    print(
+        f"Total patients affected: {len(patients_affected)} \n  Total  Patients not affected : {len(non_affected_patients)}"
+    )
     print("Ratio of patients affected vs Non affected patients : ", len(patients_affected) / (len(non_affected_patients)))
     print("Patients Affected Prevalence as  %Percentage : ", len(patients_affected) / (len(patients_affected) + len(non_affected_patients)) * 100)
     print("\n----------Following Features are present in the data -----------")

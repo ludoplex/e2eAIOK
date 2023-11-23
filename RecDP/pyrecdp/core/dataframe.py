@@ -13,12 +13,10 @@ class DataFrameAPI:
                 raise NotImplementedError("Instiate DataFrame based on path only support csv and parquet")
         if not isinstance(df, pd.DataFrame):
             raise NotImplementedError("Instiate DataFrame based on non-pandas dataframe is not implemented yet.")
-        
+
         from pandas_flavor import register_dataframe_method
         @register_dataframe_method
         def may_sample(df, nrows = 100000):
-            if df.shape[0] > nrows:
-                return df.sample(n=nrows, random_state = 123)
-            else:
-                return df
+            return df.sample(n=nrows, random_state = 123) if df.shape[0] > nrows else df
+
         return df

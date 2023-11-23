@@ -180,19 +180,18 @@ class TransformerASRSuper(nn.Module):
         return numel
 
     @classmethod
-    def gen_transformer(config):
-        model = TransformerASRSuper(
-            input_size = config["input_size"],
-            tgt_vocab = config["output_neurons"],
-            d_model = config["d_model"],
-            encoder_heads = config["encoder_heads"],
-            nhead = config["nhead"],
-            num_encoder_layers = config["num_encoder_layers"],
-            num_decoder_layers = config["num_decoder_layers"],
-            mlp_ratio = config["mlp_ratio"],
-            d_ffn = config["d_ffn"],
-            dropout = config["transformer_dropout"],
-            activation = torch.nn.GELU,
-            normalize_before = True
+    def gen_transformer(cls):
+        return TransformerASRSuper(
+            input_size=cls["input_size"],
+            tgt_vocab=cls["output_neurons"],
+            d_model=cls["d_model"],
+            encoder_heads=cls["encoder_heads"],
+            nhead=cls["nhead"],
+            num_encoder_layers=cls["num_encoder_layers"],
+            num_decoder_layers=cls["num_decoder_layers"],
+            mlp_ratio=cls["mlp_ratio"],
+            d_ffn=cls["d_ffn"],
+            dropout=cls["transformer_dropout"],
+            activation=torch.nn.GELU,
+            normalize_before=True,
         )
-        return model

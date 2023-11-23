@@ -37,11 +37,12 @@ class SetupSpec:
             "graphviz",
             "requests",
         ]
-        self.extras: dict = {}
-        self.extras['autofe'] = list_requirements("pyrecdp/autofe/requirements.txt")
+        self.extras: dict = {
+            'autofe': list_requirements("pyrecdp/autofe/requirements.txt")
+        }
         self.extras['LLM'] = list_requirements("pyrecdp/LLM/requirements.txt")
-        self.extras["all"] = list(set(chain.from_iterable(self.extras.values()))
-    )
+            self.extras["all"] = list(set(chain.from_iterable(self.extras.values()))
+        )
 
     def get_packages(self):
         return setuptools.find_packages()

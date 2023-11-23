@@ -17,8 +17,7 @@ def quality_classifier_spark(spark_df,
 
     from pyrecdp.primitives.operations import TextQualityScorer
     op = TextQualityScorer(text_key=text_key, model=model)
-    pred = op.process_spark(spark_df.sparkSession, spark_df)
-    return pred
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def quality_classifier(dataset_path,

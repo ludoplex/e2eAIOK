@@ -131,13 +131,8 @@ class Conv2d(nn.Module):
                 x, self.kernel_size, self.dilation, self.stride
             )
 
-        elif self.padding == "valid":
-            pass
-
-        else:
-            raise ValueError(
-                "Padding must be 'same' or 'valid'. Got " + self.padding
-            )
+        elif self.padding != "valid":
+            raise ValueError(f"Padding must be 'same' or 'valid'. Got {self.padding}")
 
         wx = self.conv(x)
 
@@ -196,13 +191,12 @@ class Conv2d(nn.Module):
             in_channels = shape[3]
 
         else:
-            raise ValueError("Expected 3d or 4d inputs. Got " + len(shape))
+            raise ValueError(f"Expected 3d or 4d inputs. Got {len(shape)}")
 
         # Kernel size must be odd
         if self.kernel_size[0] % 2 == 0 or self.kernel_size[1] % 2 == 0:
             raise ValueError(
-                "The field kernel size must be an odd number. Got %s."
-                % (self.kernel_size)
+                f"The field kernel size must be an odd number. Got {self.kernel_size}."
             )
 
         return in_channels
@@ -224,14 +218,12 @@ def get_padding_elem(L_in: int, stride: int, kernel_size: int, dilation: int):
     dilation : int
     """
     if stride > 1:
-        padding = [math.floor(kernel_size / 2), math.floor(kernel_size / 2)]
+        return [math.floor(kernel_size / 2), math.floor(kernel_size / 2)]
 
-    else:
-        L_out = (
-            math.floor((L_in - dilation * (kernel_size - 1) - 1) / stride) + 1
-        )
-        padding = [
-            math.floor((L_in - L_out) / 2),
-            math.floor((L_in - L_out) / 2),
-        ]
-    return padding
+    L_out = (
+        math.floor((L_in - dilation * (kernel_size - 1) - 1) / stride) + 1
+    )
+    return [
+        math.floor((L_in - L_out) / 2),
+        math.floor((L_in - L_out) / 2),
+    ]

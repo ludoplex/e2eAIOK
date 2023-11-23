@@ -292,12 +292,12 @@ def extraneous_whitespace(logical_line):
         text = match.group()
         char = text.strip()
         found = match.start()
-        if text == char + ' ':
+        if text == f'{char} ':
             # assert char in '([{'
-            yield found + 1, "E201 whitespace after '%s'" % char
+            yield (found + 1, f"E201 whitespace after '{char}'")
         elif line[found - 1] != ',':
             code = ('E202' if char in '}])' else 'E203')  # if char in ',;:'
-            yield found, "%s whitespace before '%s'" % (code, char)
+            yield (found, f"{code} whitespace before '{char}'")
 
 
 def whitespace_around_keywords(logical_line):
@@ -346,7 +346,7 @@ def missing_whitespace(logical_line):
                 continue  # Slice syntax, no space required
             if char == ',' and line[index + 1] == ')':
                 continue  # Allow tuple with only one element: (3,)
-            yield index, "E231 missing whitespace after '%s'" % char
+            yield (index, f"E231 missing whitespace after '{char}'")
 
 
 def indentation(logical_line, previous_logical, indent_char, indent_level,
@@ -437,7 +437,7 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
     # for each depth, memorize the visual indent column
     indent = [last_indent[1]]
     if verbose >= 3:
-        print(">>> " + tokens[0][4].rstrip())
+        print(f">>> {tokens[0][4].rstrip()}")
 
     for token_type, text, start, end, line in tokens:
 
@@ -450,7 +450,7 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
             # this is the beginning of a continuation line.
             last_indent = start
             if verbose >= 3:
-                print("... " + line.rstrip())
+                print(f"... {line.rstrip()}")
 
             # record the initial indent.
             rel_indent[row] = expand_indent(line) - indent_level
@@ -493,10 +493,7 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
             elif visual_indent is True:
                 # visual indent is verified
                 indent[depth] = start[1]
-            elif visual_indent in (text, str):
-                # ignore token lined up with matching one from a previous line
-                pass
-            else:
+            elif visual_indent not in (text, str):
                 # indent is broken
                 if hang <= 0:
                     error = "E122", "missing indentation or outdented"
@@ -518,12 +515,10 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
             indent[depth] = start[1]
             indent_chances[start[1]] = True
             if verbose >= 4:
-                print("bracket depth %s indent to %s" % (depth, start[1]))
-        # deal with implicit string concatenation
+                print(f"bracket depth {depth} indent to {start[1]}")
         elif (token_type in (tokenize.STRING, tokenize.COMMENT)
               or text in ('u', 'ur', 'b', 'br')):
             indent_chances[start[1]] = str
-        # special case for the "if" statement because len("if (") == 4
         elif not indent_chances and not row and not depth and text == 'if':
             indent_chances[end[1] + 1] = True
         elif text == ':' and line[end[1]:].isspace():
@@ -540,8 +535,9 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
                 open_rows[depth].append(row)
                 parens[row] += 1
                 if verbose >= 4:
-                    print("bracket depth %s seen, col %s, visual min = %s" %
-                          (depth, start[1], indent[depth]))
+                    print(
+                        f"bracket depth {depth} seen, col {start[1]}, visual min = {indent[depth]}"
+                    )
             elif text in ')]}' and depth > 0:
                 # parent indents should not be more than this one
                 prev_indent = indent.pop() or last_indent[1]
@@ -575,7 +571,7 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
             code = "E129 visually indented line"
         else:
             code = "E125 continuation line"
-        yield pos, "%s with same indent as next logical line" % code
+        yield (pos, f"{code} with same indent as next logical line")
 
 
 def whitespace_before_parameters(logical_line, tokens):
@@ -602,7 +598,7 @@ def whitespace_before_parameters(logical_line, tokens):
             (index < 2 or tokens[index - 2][1] != 'class') and
                 # Allow "return (a.foo for a in range(5))"
                 not keyword.iskeyword(prev_text)):
-            yield prev_end, "E211 whitespace before '%s'" % text
+            yield (prev_end, f"E211 whitespace before '{text}'")
         prev_type = token_type
         prev_text = text
         prev_end = end
@@ -659,10 +655,10 @@ def missing_whitespace_around_operator(logical_line, tokens):
     E227: c = a|b
     E228: msg = fmt%(errno, errmsg)
     """
-    parens = 0
     need_space = False
     prev_type = tokenize.OP
     prev_text = prev_end = None
+    parens = 0
     for token_type, text, start, end, line in tokens:
         if token_type in SKIP_COMMENTS:
             continue
@@ -677,11 +673,7 @@ def missing_whitespace_around_operator(logical_line, tokens):
                     yield (need_space[0],
                            "E225 missing whitespace around operator")
                 need_space = False
-            elif text == '>' and prev_text in ('<', '-'):
-                # Tolerate the "<>" operator, even if running Python 3
-                # Deal with Python 3's annotated return value "->"
-                pass
-            else:
+            elif text != '>' or prev_text not in ('<', '-'):
                 if need_space is True or need_space[1]:
                     # A needed trailing space was not found
                     yield prev_end, "E225 missing whitespace around operator"
@@ -691,8 +683,7 @@ def missing_whitespace_around_operator(logical_line, tokens):
                         code, optype = 'E228', 'modulo'
                     elif prev_text not in ARITHMETIC_OP:
                         code, optype = 'E227', 'bitwise or shift'
-                    yield (need_space[0], "%s missing whitespace "
-                           "around %s operator" % (code, optype))
+                    yield (need_space[0], f"{code} missing whitespace around {optype} operator")
                 need_space = False
         elif token_type == tokenize.OP and prev_end is not None:
             if text == '=' and parens:
@@ -736,9 +727,9 @@ def whitespace_around_comma(logical_line):
     for m in WHITESPACE_AFTER_COMMA_REGEX.finditer(line):
         found = m.start() + 1
         if '\t' in m.group():
-            yield found, "E242 tab after '%s'" % m.group()[0]
+            yield (found, f"E242 tab after '{m.group()[0]}'")
         else:
-            yield found, "E241 multiple spaces after '%s'" % m.group()[0]
+            yield (found, f"E241 multiple spaces after '{m.group()[0]}'")
 
 
 def whitespace_around_named_parameter_equals(logical_line, tokens):
@@ -846,7 +837,7 @@ def imports_on_separate_lines(logical_line):
     line = logical_line
     if line.startswith('import '):
         found = line.find(',')
-        if -1 < found and ';' not in line[:found]:
+        if found > -1 and ';' not in line[:found]:
             yield found, "E401 multiple imports on one line"
 
 
@@ -872,7 +863,7 @@ def module_imports_on_top_of_file(logical_line, indent_level, checker_state,
             line = line[1:]
         if line and line[0] in 'rR':
             line = line[1:]
-        return line and (line[0] == '"' or line[0] == "'")
+        return line and line[0] in ['"', "'"]
 
     allowed_try_keywords = ('try', 'except', 'else', 'finally')
 
@@ -937,8 +928,7 @@ def compound_statements(logical_line):
                 before.count('{') <= before.count('}') and  # {'a': 1} (dict)
                 before.count('[') <= before.count(']') and  # [1:2] (slice)
                 before.count('(') <= before.count(')'))):  # (annotation)
-            lambda_kw = LAMBDA_REGEX.search(before)
-            if lambda_kw:
+            if lambda_kw := LAMBDA_REGEX.search(before):
                 before = line[:lambda_kw.start()].rstrip()
                 if before[-1:] == '=' and isidentifier(before[:-1].strip()):
                     yield 0, ("E731 do not assign a lambda expression, use a "
@@ -950,7 +940,7 @@ def compound_statements(logical_line):
                 yield found, "E701 multiple statements on one line (colon)"
         found = line.find(':', found + 1)
     found = line.find(';')
-    while -1 < found:
+    while found > -1:
         if found < last_char:
             yield found, "E702 multiple statements on one line (semicolon)"
         else:
@@ -1053,21 +1043,22 @@ def comparison_to_singleton(logical_line, noqa):
     set to some other value.  The other value might have a type (such as a
     container) that could be false in a boolean context!
     """
-    match = not noqa and COMPARE_SINGLETON_REGEX.search(logical_line)
-    if match:
-        singleton = match.group(1) or match.group(3)
-        same = (match.group(2) == '==')
+    if not (
+        match := not noqa and COMPARE_SINGLETON_REGEX.search(logical_line)
+    ):
+        return
+    singleton = match.group(1) or match.group(3)
+    same = (match.group(2) == '==')
 
-        msg = "'if cond is %s:'" % (('' if same else 'not ') + singleton)
-        if singleton in ('None', ):
-            code = 'E711'
-        else:
-            code = 'E712'
-            nonzero = ((singleton == 'True' and same)
-                       or (singleton == 'False' and not same))
-            msg += " or 'if %scond:'" % ('' if nonzero else 'not ')
-        yield match.start(2), ("%s comparison to %s should be %s" %
-                               (code, singleton, msg))
+    msg = f"'if cond is {('' if same else 'not ') + singleton}:'"
+    if singleton in ('None', ):
+        code = 'E711'
+    else:
+        code = 'E712'
+        nonzero = ((singleton == 'True' and same)
+                   or (singleton == 'False' and not same))
+        msg += f" or 'if {'' if nonzero else 'not '}cond:'"
+    yield (match.start(2), f"{code} comparison to {singleton} should be {msg}")
 
 
 def comparison_negative(logical_line):
@@ -1082,8 +1073,7 @@ def comparison_negative(logical_line):
     E714: if not X is Y:\n    pass
     E714: Z = not X.B is Y
     """
-    match = COMPARE_NEGATIVE_REGEX.search(logical_line)
-    if match:
+    if match := COMPARE_NEGATIVE_REGEX.search(logical_line):
         pos = match.start(1)
         if match.group(2) == 'in':
             yield pos, "E713 test for membership should be 'not in'"
@@ -1393,13 +1383,13 @@ class Checker(object):
                 self.lines = readlines(filename)
             except IOError:
                 (exc_type, exc) = sys.exc_info()[:2]
-                self._io_error = '%s: %s' % (exc_type.__name__, exc)
+                self._io_error = f'{exc_type.__name__}: {exc}'
                 self.lines = []
         else:
             self.lines = lines
         if self.lines:
             ord0 = ord(self.lines[0][0])
-            if ord0 in (0xef, 0xfeff):  # Strip the UTF-8 BOM
+            if ord0 in {0xEF, 0xFEFF}:  # Strip the UTF-8 BOM
                 if ord0 == 0xfeff:
                     self.lines[0] = self.lines[0][1:]
                 elif self.lines[0][:3] == '\xef\xbb\xbf':
@@ -1416,9 +1406,12 @@ class Checker(object):
                 offset = offset[1:3]
         else:
             offset = (1, 0)
-        self.report_error(offset[0], offset[1] or 0,
-                          'E901 %s: %s' % (exc_type.__name__, exc.args[0]),
-                          self.report_invalid_syntax)
+        self.report_error(
+            offset[0],
+            offset[1] or 0,
+            f'E901 {exc_type.__name__}: {exc.args[0]}',
+            self.report_invalid_syntax,
+        )
 
     def readline(self):
         """Get the next line from the input buffer."""
@@ -1432,9 +1425,7 @@ class Checker(object):
 
     def run_check(self, check, argument_names):
         """Run a check plugin."""
-        arguments = []
-        for name in argument_names:
-            arguments.append(getattr(self, name))
+        arguments = [getattr(self, name) for name in argument_names]
         return check(*arguments)
 
     def init_checker_state(self, name, argument_names):

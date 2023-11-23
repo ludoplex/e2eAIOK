@@ -177,7 +177,7 @@ class Test_LLMUtils(unittest.TestCase):
         import shutil, argparse, pickle
         from pyrecdp.primitives.llmutils.utils import read_json
         from pyrecdp.primitives.llmutils.near_dedup import minHashLSH_prepare, generate_connected_components, \
-            generate_duplicates_dict
+                generate_duplicates_dict
         from pyrecdp.primitives.llmutils.shrink_jsonl import shrink_document_MP
 
         data_dir = "tests/data/llm_data"
@@ -200,7 +200,7 @@ class Test_LLMUtils(unittest.TestCase):
                     shutil.rmtree(dup_dir, ignore_errors=True)
                 results = pipeline.saveAsTextFile(dup_dir)
 
-            with Timer(f"generate_connected_components all"):
+            with Timer("generate_connected_components all"):
                 dup_connected_args = argparse.Namespace()
                 dup_connected_args.input_dir = dup_dir
                 dup_connected_args.out_file = os.path.join(
@@ -210,7 +210,7 @@ class Test_LLMUtils(unittest.TestCase):
                     dup_connected_args
                 )
 
-            with Timer(f"generate_duplicates_dict all"):
+            with Timer("generate_duplicates_dict all"):
                 dup_docs = os.path.join(dup_dir, "duplicates.pickle")
                 dup_dict_args = argparse.Namespace()
                 dup_dict_args.input_file = os.path.join(
@@ -220,16 +220,13 @@ class Test_LLMUtils(unittest.TestCase):
                 generate_duplicates_dict.generate_duplicates(dup_dict_args)
 
             dup_dict = pickle.load(open(os.path.join(dup_dir, "duplicates.pickle"), 'rb'))
-            dup_sum = 0
-            for _, v in dup_dict.items():
-                dup_sum += len(list(v))
-
+            dup_sum = sum(len(list(v)) for _, v in dup_dict.items())
             dup_dict = os.path.join(dup_dir, "duplicates.pickle")
             out_dir = os.path.join(dup_dir, "output")
             with Timer("remove duplicate documents"):
                 shrink_document_MP(data_dir, dup_dict, out_dir)
 
-            print(f"Completed!!")
+            print("Completed!!")
             print(f"    total processed {total_length} documents")
             print(f"    total detected {dup_sum} duplicated documents")
             print(f"    duplicate ratio is {dup_sum / total_length}")
@@ -329,7 +326,7 @@ class Test_LLMUtils(unittest.TestCase):
         out_dir = "tests/data/global_dedup/"
         data_dir = "tests/data/PILE"
         global_dedup(data_dir, out_dir, "PILE", in_type)
-        pdf = pd.read_parquet(out_dir + 'deduplicated')
+        pdf = pd.read_parquet(f'{out_dir}deduplicated')
         display(pdf)
 
     def test_pdf_to_json(self):

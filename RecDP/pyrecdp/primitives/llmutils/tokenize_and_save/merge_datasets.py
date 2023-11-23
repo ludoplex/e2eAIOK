@@ -33,14 +33,16 @@ def main(args):
             dataset = indexed_dataset.make_dataset(os.path.join(args.input, prefix), 'infer')
 
             if isinstance(dataset, indexed_dataset.MMapIndexedDataset):
-                builder = indexed_dataset.MMapIndexedDatasetBuilder(args.output_prefix + '.bin', dtype=dataset._index.dtype)
+                builder = indexed_dataset.MMapIndexedDatasetBuilder(
+                    f'{args.output_prefix}.bin', dtype=dataset._index.dtype
+                )
             else:
-                builder = indexed_dataset.IndexedDatasetBuilder(args.output_prefix + '.bin')
+                builder = indexed_dataset.IndexedDatasetBuilder(f'{args.output_prefix}.bin')
 
             del dataset
         builder.merge_file_(os.path.join(args.input, prefix))
 
-    builder.finalize(args.output_prefix + '.idx')
+    builder.finalize(f'{args.output_prefix}.idx')
 
 
 if __name__ == '__main__':

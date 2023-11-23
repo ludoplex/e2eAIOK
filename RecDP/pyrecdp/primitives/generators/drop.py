@@ -14,22 +14,21 @@ class DropUselessFeatureGenerator(super_class):
         is_useful = False
         pa_schema = pipeline[children[0]].output
         for pa_field in pa_schema:
-            if not self.final:
-                if not (pa_field.is_numeric or pa_field.is_categorical):
-                    self.feature_in.append(pa_field.name)
-                    is_useful = True
-            else:
+            if self.final:
                 if not (pa_field.is_numeric):
                     self.feature_in.append(pa_field.name)
                     is_useful = True
-        ret_schema = []
-        for pa_field in pa_schema:
-            if pa_field.name not in self.feature_in:
-                ret_schema.append(pa_field)
-        if is_useful:
-            cur_idx = max_idx + 1
-            config = self.feature_in
-            pipeline[cur_idx] = Operation(cur_idx, children, ret_schema, op = 'drop', config = config)
-            return pipeline, cur_idx, cur_idx
-        else:
+            elif not pa_field.is_numeric and not pa_field.is_categorical:
+                self.feature_in.append(pa_field.name)
+                is_useful = True
+        if not is_useful:
             return pipeline, children[0], max_idx
+        cur_idx = max_idx + 1
+        ret_schema = [
+            pa_field
+            for pa_field in pa_schema
+            if pa_field.name not in self.feature_in
+        ]
+        config = self.feature_in
+        pipeline[cur_idx] = Operation(cur_idx, children, ret_schema, op = 'drop', config = config)
+        return pipeline, cur_idx, cur_idx

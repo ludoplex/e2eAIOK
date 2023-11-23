@@ -7,8 +7,7 @@ from pyrecdp.primitives.operations import JsonlReader, ParquetReader, PerfilePar
 def perplexity_score_spark(spark_df, language: str = 'en'):
     from pyrecdp.primitives.operations import TextPerplexityScore
     op = TextPerplexityScore(language=language)
-    ret = op.process_spark(spark_df.sparkSession, spark_df)
-    return ret
+    return op.process_spark(spark_df.sparkSession, spark_df)
 
 
 def perplexity_score(data_dir, out_dir, data_file_type="jsonl", language: str = 'en'):

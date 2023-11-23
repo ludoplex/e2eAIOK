@@ -21,11 +21,10 @@ import pickle
 def callable_string_fix(func_str):
     func_str_lines = func_str.split('\n')
     import re
-    bad_indent = "".join(re.findall("^(\s+)", func_str_lines[0]))
-    if len(bad_indent) == 0:
+    if bad_indent := "".join(re.findall("^(\s+)", func_str_lines[0])):
+        return '\n'.join([i[len(bad_indent):] for i in func_str_lines])
+    else:
         return func_str
-    func_str = '\n'.join([i[len(bad_indent):] for i in func_str_lines])
-    return func_str
     
 def sequenced_union1d(a, b):
     if isinstance(a, np.ndarray):
@@ -36,29 +35,27 @@ def sequenced_union1d(a, b):
         b_list = b.tolist()
     elif isinstance(b, list):
         b_list = b
-    a_dict = dict((i, 0) for i in a_list)
+    a_dict = {i: 0 for i in a_list}
     [a_list.append(i) for i in b_list if i not in a_dict]
     return np.array(a_list)
 
 def get_encoder(dict_path):
     if dict_path.endswith(".parquet"):
         return get_encoder_df(dict_path)
-    else:
-        if not os.path.exists(dict_path):
-            return FileNotFoundError(f"{dict_path} is not found")
-        with open(dict_path, 'rb') as f:
-            encoder = pickle.load(f)
-        return encoder
+    if not os.path.exists(dict_path):
+        return FileNotFoundError(f"{dict_path} is not found")
+    with open(dict_path, 'rb') as f:
+        encoder = pickle.load(f)
+    return encoder
 
 def save_encoder(encoder, dict_path):
     if isinstance(encoder, pd.DataFrame):
         return save_encoder_df(encoder, dict_path)
-    else:
-        dirname = os.path.dirname(dict_path)
-        if len(dirname) > 0 and not os.path.exists(dirname):
-            os.mkdir(dirname)
-        with open(dict_path, 'wb') as f:
-            pickle.dump(encoder, f)
+    dirname = os.path.dirname(dict_path)
+    if len(dirname) > 0 and not os.path.exists(dirname):
+        os.mkdir(dirname)
+    with open(dict_path, 'wb') as f:
+        pickle.dump(encoder, f)
 
 def get_encoder_df(dict_path):
     if not os.path.exists(dict_path):
@@ -87,9 +84,8 @@ def fillna_with_series(tgt_s, src_s):
             ret.append(df_encoded_list[idx])
         else:
             ret.append(df_encoded_2_list[idx])
-    
-    ret = pd.Series(ret, index = tgt_s.index)
-    return ret
+
+    return pd.Series(ret, index = tgt_s.index)
 
 def get_sample_indices_pd(indices, target_num_rows):
     if isinstance(indices, pd.DataFrame):
@@ -116,7 +112,7 @@ def dump_fix(x):
     if isinstance(x, dict):
         for k, v in x.items():
             x[k] = dump_fix(v)
-    elif isinstance(x, list) or isinstance(x, np.ndarray):
+    elif isinstance(x, (list, np.ndarray)):
         for idx in range(len(x)):
             x[idx] = dump_fix(x[idx])
     elif isinstance(x, type):
@@ -136,7 +132,7 @@ def class_name_fix(s):
     ret = s
     if isinstance(s, type):
         ret = s
-    elif isinstance(s, tuple) or isinstance(s, list):
+    elif isinstance(s, (tuple, list)):
         import importlib
         module = importlib.import_module(s[0])
         ret = eval("module." + s[1])
@@ -156,12 +152,11 @@ def infer_problem_type(df, label):
         y = df[label]
     unique_count = y.nunique()
     if unique_count == 2:
-        problem_type = 'binary'
+        return 'binary'
     elif y.dtype.name in ['object', 'category', 'string']:
-        problem_type = 'multiclass'
+        return 'multiclass'
     else:
-        problem_type = 'regression'
-    return problem_type
+        return 'regression'
  
 def is_text_series(s):
     from pandas.api import types as pdt
@@ -194,9 +189,7 @@ def is_integer_convertable(s):
     if not is_numeric_dtype(s.dtype):
         return False
     s = s.fillna(0)
-    if np.array_equal(s, s.astype(int)):
-        return True
-    return False
+    return bool(np.array_equal(s, s.astype(int)))
 
 def is_unique(s):
     if isinstance(s, pd.Series):

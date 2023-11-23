@@ -414,14 +414,11 @@ def hashit(x):
 
 def ret_word( x, rw=0 ):
     x = x.split(' ')
-    
+
     if len(x)>rw:
         return hashit(x[rw])
     elif rw<0:
-        if len(x)>0:
-            return hashit(x[-1])
-        else:
-            return 0
+        return hashit(x[-1]) if len(x)>0 else 0
     else:
         return 0
     
@@ -434,15 +431,11 @@ def extract_hash(text, split_text='@', no=0):
         cl_loop = True
         uhash += clean_text(text_split[0])
         while cl_loop:
-            if len(text_split)>1:
-                if text_split[1] in ['_']:
-                    uhash += clean_text(text_split[1]) + clean_text(text_split[2])
-                    text_split = text_split[2:]
-                else:
-                    cl_loop = False
+            if len(text_split) > 1 and text_split[1] in ['_']:
+                uhash += clean_text(text_split[1]) + clean_text(text_split[2])
+                text_split = text_split[2:]
             else:
                 cl_loop = False
-                
     return hashit(uhash)
 
 def clean_text(text):
@@ -465,11 +458,11 @@ def check_last_char_quest(x_org):
         return(0)
     elif x[-1]=='?' and x[-2]!='!':
         return(1)
-    elif x[-1]=='?' and x[-2]=='!':
+    elif x[-1] == '?':
         return(2)
     elif x[-1]=='!' and x[-2]=='?':
         return(3)
-    elif x[-1]=='!' and x[-2]!='?':
+    elif x[-1] == '!':
         return(4)
     else:
         return(0)
@@ -567,20 +560,27 @@ def categorifyFeatures(df, proc, output_name, gen_dict, sampleRatio=1):
         print("Generate Dictionary took %.3f" % (t2 - t1))
     else:
         dict_names = ['tweet', 'mention']
-        dict_dfs = [{'col_name': name, 'dict': proc.spark.read.parquet(
-            "%s/%s/%s/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, name))} for name in dict_names]
+        dict_dfs = [
+            {
+                'col_name': name,
+                'dict': proc.spark.read.parquet(
+                    f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/{name}"
+                ),
+            }
+            for name in dict_names
+        ]
     # 2. since we need both mentioned_bucket_id and mentioned_count, add two mention id dict_dfs
     for dict_df in dict_dfs:
         if dict_df['col_name'] == 'mention':
             dict_dfs.append({'col_name': 'mentioned_bucket_id', 'dict':dict_df['dict']})
             dict_dfs.append({'col_name': 'mentioned_count', 'dict':dict_df['dict'].drop('dict_col_id').withColumnRenamed('count', 'dict_col_id')})
     op_feature_add = FeatureAdd({"mentioned_bucket_id": "f.col('mention')", "mentioned_count": "f.col('mention')"}, op='inline')
-    
+
     # 3. categorify
     op_categorify_multiItems = Categorify([{'bucketized_tweet_word': 'tweet'}], dict_dfs=dict_dfs, doSplit=True, sep=' ')
     op_categorify_singleItem = Categorify(['mentioned_bucket_id', 'mentioned_count'], dict_dfs=dict_dfs)
     proc.reset_ops([op_feature_add, op_categorify_multiItems, op_categorify_singleItem])
-    
+
     # 4. get most and second used bucketized_tweet_word
     op_feature_add_sorted_bucketized_tweet_word = FeatureAdd(
         cols={'sorted_bucketized_tweet_word': "f.expr('sortIntArrayByFrequency(bucketized_tweet_word)')"}, op='inline')
@@ -610,7 +610,7 @@ def CountEncodingFeatures(df, proc, gen_dict, mode, train_generate=True):
         prefix = "inference_"
     else:
         raise NotImplementedError("mode need to be train or valid")
-    
+
     targets = ['reply_timestamp']
 
     t1 = timer()
@@ -620,7 +620,7 @@ def CountEncodingFeatures(df, proc, gen_dict, mode, train_generate=True):
         target_tmp = targets
         out_name = ""
         out_col_list = []
-        for tgt in target_tmp:
+        for _ in target_tmp:
             if isinstance(c, list):
                 out_col_list.append(prefix + 'GCE_'+'_'.join(c))
                 out_name = prefix + 'GCE_'+'_'.join(c)
@@ -636,20 +636,20 @@ def CountEncodingFeatures(df, proc, gen_dict, mode, train_generate=True):
             else:
                 ce_test_df = encoder.transform(df)
             ce_test_dfs.append({'col_name': c, 'dict': ce_test_df})
-            print(f"generating count encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
+            print(
+                "generating count encoding for %s upon %s took %.1f seconds"
+                % (str(c), str(target_tmp), timer() - start)
+            )
         else:
-            ce_train_path = "%s/%s/%s/train/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)
-            ce_test_path = "%s/%s/%s/test/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)    
+            ce_train_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/train/{out_name}"
+            ce_test_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/test/{out_name}"
             if train_generate:           
                 ce_train_dfs.append({'col_name': c, 'dict': proc.spark.read.parquet(ce_train_path)})
             ce_test_dfs.append({'col_name': c, 'dict': proc.spark.read.parquet(ce_test_path)})
     t2 = timer()
     print("Generate count encoding feature totally took %.3f" % (t2 - t1))
 
-    if train_generate:
-        return (ce_train_dfs, ce_test_dfs)
-    else:
-        return ce_test_dfs
+    return (ce_train_dfs, ce_test_dfs) if train_generate else ce_test_dfs
 
 def TargetEncodingFeatures(df, proc, gen_dict, mode):   
     if mode == 'stage1':
@@ -663,7 +663,7 @@ def TargetEncodingFeatures(df, proc, gen_dict, mode):
 
     targets = ['reply_timestamp', 'retweet_timestamp', 'retweet_with_comment_timestamp', 'like_timestamp']
     y_mean_all = []
-    
+
     t1 = timer()
     if gen_dict:
         for tgt in targets:
@@ -673,9 +673,11 @@ def TargetEncodingFeatures(df, proc, gen_dict, mode):
         schema = t.StructType([t.StructField(tgt, t.FloatType(), True) for tgt in targets])
         y_mean_all_df = proc.spark.createDataFrame([tuple(y_mean_all)], schema)
         y_mean_all_df.write.format("parquet").mode("overwrite").save(
-            "%s/%s/%s/targets_mean" % (proc.path_prefix, proc.current_path, proc.dicts_path))
+            f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/targets_mean"
+        )
     y_mean_all_df = proc.spark.read.parquet(
-        "%s/%s/%s/targets_mean" % (proc.path_prefix, proc.current_path, proc.dicts_path))
+        f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/targets_mean"
+    )
 
     te_train_dfs = []
     te_test_dfs = []
@@ -683,10 +685,7 @@ def TargetEncodingFeatures(df, proc, gen_dict, mode):
         target_tmp = targets
         out_name = ""
         if str(c) in TE_col_excludes:
-            target_tmp = []
-            for tgt in targets:
-                if tgt not in TE_col_excludes[c]:
-                    target_tmp.append(tgt)
+            target_tmp = [tgt for tgt in targets if tgt not in TE_col_excludes[c]]
         out_col_list = []
         for tgt in target_tmp:
             if isinstance(c, list):
@@ -705,10 +704,13 @@ def TargetEncodingFeatures(df, proc, gen_dict, mode):
             te_train_df, te_test_df = encoder.transform(df)
             te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': te_train_df})
             te_test_dfs.append({'col_name': c, 'dict': te_test_df})
-            print(f"generating target encoding for %s upon %s took %.1f seconds"%(str(c), str(target_tmp), timer()-start))
+            print(
+                "generating target encoding for %s upon %s took %.1f seconds"
+                % (str(c), str(target_tmp), timer() - start)
+            )
         else:
-            te_train_path = "%s/%s/%s/train/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)
-            te_test_path = "%s/%s/%s/test/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)               
+            te_train_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/train/{out_name}"
+            te_test_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/test/{out_name}"
             te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': proc.spark.read.parquet(te_train_path)})
             te_test_dfs.append({'col_name': c, 'dict': proc.spark.read.parquet(te_test_path)})
     t2 = timer()
@@ -759,7 +761,8 @@ def getTargetEncodingFeaturesDicts(proc, mode, train_dict_load = True):
     targets = ['reply_timestamp', 'retweet_timestamp', 'retweet_with_comment_timestamp', 'like_timestamp']
     y_mean_all = []
     y_mean_all_df = proc.spark.read.parquet(
-        "%s/%s/%s/targets_mean" % (proc.path_prefix, proc.current_path, proc.dicts_path))
+        f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/targets_mean"
+    )
 
     te_train_dfs = []
     te_test_dfs = []
@@ -767,21 +770,19 @@ def getTargetEncodingFeaturesDicts(proc, mode, train_dict_load = True):
         target_tmp = targets
         out_name = ""
         if str(c) in TE_col_excludes:
-            target_tmp = []
-            for tgt in targets:
-                if tgt not in TE_col_excludes[c]:
-                    target_tmp.append(tgt)
-        for tgt in target_tmp:
-            if isinstance(c, list):
-                out_name = prefix + 'GTE_'+'_'.join(c)
-            else:
-                out_name = prefix + f'TE_{c}'
+            target_tmp = [tgt for tgt in targets if tgt not in TE_col_excludes[c]]
+        for _ in target_tmp:
+            out_name = (
+                prefix + 'GTE_' + '_'.join(c)
+                if isinstance(c, list)
+                else prefix + f'TE_{c}'
+            )
         if train_dict_load:
-            te_train_path = "%s/%s/%s/train/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)
+            te_train_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/train/{out_name}"
             te_train_dfs.append({'col_name': ['fold'] + (c if isinstance(c, list) else [c]), 'dict': proc.spark.read.parquet(te_train_path)})
-        te_test_path = "%s/%s/%s/test/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, out_name)
+        te_test_path = f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/test/{out_name}"
         te_test_dfs.append({'col_name': c, 'dict': proc.spark.read.parquet(te_test_path)})
-        
+
     return (te_train_dfs, te_test_dfs, y_mean_all_df)
 
 def valid_mergeFeatures(df, te_test_dfs, y_mean_all_df, proc, output_name, mode, dict_dfs=None):
@@ -793,32 +794,33 @@ def valid_mergeFeatures(df, te_test_dfs, y_mean_all_df, proc, output_name, mode,
                 dict_dfs.append({'col_name': 'mentioned_bucket_id', 'dict':dict_df['dict']})
                 dict_dfs.append({'col_name': 'mentioned_count', 'dict':dict_df['dict'].drop('dict_col_id').withColumnRenamed('count', 'dict_col_id')})
         op_feature_add = FeatureAdd({"mentioned_bucket_id": "f.col('mention')", "mentioned_count": "f.col('mention')"}, op='inline')
-        
+
         op_categorify_multiItems = Categorify([{'bucketized_tweet_word': 'tweet'}], dict_dfs=dict_dfs, doSplit=True, sep=' ')
         op_categorify_singleItem = Categorify(['mentioned_bucket_id', 'mentioned_count'], dict_dfs=dict_dfs)
         proc.reset_ops([op_feature_add, op_categorify_multiItems, op_categorify_singleItem])
-        
+
         op_feature_add_sorted_bucketized_tweet_word = FeatureAdd(
             cols={'sorted_bucketized_tweet_word': "f.expr('sortIntArrayByFrequency(bucketized_tweet_word)')"}, op='inline')
         op_feature_add_convert = FeatureAdd(
             cols={'most_used_word_bucket_id': "f.when(f.size(f.col('sorted_bucketized_tweet_word'))>0, f.col('sorted_bucketized_tweet_word').getItem(0)).otherwise(np.nan)",
                 'second_used_word_bucket_id': "f.when(f.size(f.col('sorted_bucketized_tweet_word'))>1, f.col('sorted_bucketized_tweet_word').getItem(1)).otherwise(np.nan)"}, op='inline')
         proc.append_ops([op_feature_add_sorted_bucketized_tweet_word, op_feature_add_convert])
-    
+
     # merge target encoding dicts 
     op_merge_to_test = ModelMerge(te_test_dfs)
     proc.append_ops([op_merge_to_test])
-        
+
     y_mean_all = y_mean_all_df.collect()[0]
     te_feature_list = stage1_features_list if mode == "stage1" else stage2_features_list
     for tgt in target_list:
-        to_fill_list = []
-        for feature in te_feature_list:
-            if 'TE_' in feature and tgt in feature:
-                to_fill_list.append(feature)
+        to_fill_list = [
+            feature
+            for feature in te_feature_list
+            if 'TE_' in feature and tgt in feature
+        ]
         op_fill_na = FillNA(to_fill_list, y_mean_all[tgt])
         proc.append_ops([op_fill_na])
-    
+
     # select features
     feature_list = final_feature_list_stage1 if mode == "stage1" else final_feature_list_stage2
     op_select = SelectFeature(feature_list)
@@ -853,12 +855,12 @@ def inference_mergeFeatures(df, dict_dfs, ce_test_dfs,te_test_dfs, te_test_dfs_s
             dict_dfs.append({'col_name': 'mentioned_bucket_id', 'dict':dict_df['dict']})
             dict_dfs.append({'col_name': 'mentioned_count', 'dict':dict_df['dict'].drop('dict_col_id').withColumnRenamed('count', 'dict_col_id')})
     op_feature_add = FeatureAdd({"mentioned_bucket_id": "f.col('mention')", "mentioned_count": "f.col('mention')"}, op='inline')
-    
+
     # 2. categorify
     op_categorify_multiItems = Categorify([{'bucketized_tweet_word': 'tweet'}], dict_dfs=dict_dfs, doSplit=True, sep=' ',estimated_bytes=6)
     op_categorify_singleItem = Categorify(['mentioned_bucket_id', 'mentioned_count'], dict_dfs=dict_dfs,estimated_bytes=6)
     proc.reset_ops([op_feature_add, op_categorify_multiItems, op_categorify_singleItem])
-    
+
     # 3. get most and second used bucketized_tweet_word
     op_feature_add_sorted_bucketized_tweet_word = FeatureAdd(
         cols={'sorted_bucketized_tweet_word': "f.expr('sortIntArrayByFrequency(bucketized_tweet_word)')"}, op='inline')
@@ -866,22 +868,23 @@ def inference_mergeFeatures(df, dict_dfs, ce_test_dfs,te_test_dfs, te_test_dfs_s
         cols={'most_used_word_bucket_id': "f.when(f.size(f.col('sorted_bucketized_tweet_word'))>0, f.col('sorted_bucketized_tweet_word').getItem(0)).otherwise(np.nan)",
              'second_used_word_bucket_id': "f.when(f.size(f.col('sorted_bucketized_tweet_word'))>1, f.col('sorted_bucketized_tweet_word').getItem(1)).otherwise(np.nan)"}, op='inline')
     proc.append_ops([op_feature_add_sorted_bucketized_tweet_word, op_feature_add_convert])
-    
+
     ################ merge target encoding dicts from stage1
     op_merge_to_test = ModelMerge(te_test_dfs,estimated_bytes=6)
     proc.append_ops([op_merge_to_test])
-        
+
     # set null in encoding features to y_mean
     y_mean_all = y_mean_all_df.collect()[0]
-    te_feature_list = stage1_features_list 
+    te_feature_list = stage1_features_list
     for tgt in target_list:
-        to_fill_list = []
-        for feature in te_feature_list:
-            if 'TE_' in feature and tgt in feature:
-                to_fill_list.append(feature)
+        to_fill_list = [
+            feature
+            for feature in te_feature_list
+            if 'TE_' in feature and tgt in feature
+        ]
         op_fill_na = FillNA(to_fill_list, y_mean_all[tgt])
         proc.append_ops([op_fill_na])
-    
+
     ################ merge count encoding dicts 
     op_merge_CE = ModelMerge(ce_test_dfs)
     proc.append_ops([op_merge_CE])
@@ -889,15 +892,16 @@ def inference_mergeFeatures(df, dict_dfs, ce_test_dfs,te_test_dfs, te_test_dfs_s
     ################  merge target encoding dicts from stage2
     op_merge_to_test_2 = ModelMerge(te_test_dfs_stage2)
     proc.append_ops([op_merge_to_test_2])
-        
+
     # set null in encoding features to y_mean
     y_mean_all_2 = y_mean_all_df_stage2.collect()[0]
-    te_feature_list = stage2_features_list 
+    te_feature_list = stage2_features_list
     for tgt in target_list:
-        to_fill_list = []
-        for feature in te_feature_list:
-            if 'TE_' in feature and tgt in feature:
-                to_fill_list.append(feature)
+        to_fill_list = [
+            feature
+            for feature in te_feature_list
+            if 'TE_' in feature and tgt in feature
+        ]
         op_fill_na = FillNA(to_fill_list, y_mean_all_2[tgt])
         proc.append_ops([op_fill_na])
 
@@ -914,7 +918,7 @@ def inference_mergeFeatures(df, dict_dfs, ce_test_dfs,te_test_dfs, te_test_dfs_s
         'stage2_GCE_engaged_with_user_id_engaging_user_id':"f.col('inference_GCE_engaged_with_user_id_engaging_user_id')"
        }, op='inline')
     proc.append_ops([op_rename])
-    
+
     ################ select features
     feature_list = final_feature_list_stage2
     op_select = SelectFeature(feature_list)
@@ -1009,31 +1013,36 @@ def setup_standalone(path_prefix,current_path,dicts_folder):
     scala_udf_jars = recdp_path + "/ScalaProcessUtils/target/recdp-scala-extensions-0.1.0-jar-with-dependencies.jar"
 
     t0 = timer()
-    spark = SparkSession.builder.master(f'spark://vsr119:7077')\
-        .appName("Recsys2021_data_process")\
-        .config("spark.driver.memory", '30g')\
-        .config("spark.local.dir", "/home/vmagent/app/dataset/spark")\
-        .config("spark.sql.broadcastTimeout", "7200")\
-        .config("spark.cleaner.periodicGC.interval", "15min")\
-        .config("spark.executorEnv.HF_DATASETS_OFFLINE", "1")\
-        .config("spark.executorEnv.TRANSFORMERS_OFFLINE", "1")\
-        .config("spark.executorEnv.PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")\
-        .config("spark.executor.memory", "225g")\
-        .config("spark.executor.memoryOverhead", "20g")\
-        .config("spark.executor.cores", "40")\
-        .config("spark.executor.instances","4")\
-        .config("spark.driver.extraClassPath", f"{scala_udf_jars}")\
-        .config("spark.executor.extraClassPath", f"{scala_udf_jars}")\
-        .config("spark.sql.adaptive.enabled", True)\
-        .config("spark.driver.maxResultSize","16g")\
-        .config("spark.sql.codegen.maxFields", 300)\
+    spark = (
+        SparkSession.builder.master('spark://vsr119:7077')
+        .appName("Recsys2021_data_process")
+        .config("spark.driver.memory", '30g')
+        .config("spark.local.dir", "/home/vmagent/app/dataset/spark")
+        .config("spark.sql.broadcastTimeout", "7200")
+        .config("spark.cleaner.periodicGC.interval", "15min")
+        .config("spark.executorEnv.HF_DATASETS_OFFLINE", "1")
+        .config("spark.executorEnv.TRANSFORMERS_OFFLINE", "1")
+        .config(
+            "spark.executorEnv.PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION",
+            "python",
+        )
+        .config("spark.executor.memory", "225g")
+        .config("spark.executor.memoryOverhead", "20g")
+        .config("spark.executor.cores", "40")
+        .config("spark.executor.instances", "4")
+        .config("spark.driver.extraClassPath", f"{scala_udf_jars}")
+        .config("spark.executor.extraClassPath", f"{scala_udf_jars}")
+        .config("spark.sql.adaptive.enabled", True)
+        .config("spark.driver.maxResultSize", "16g")
+        .config("spark.sql.codegen.maxFields", 300)
         .getOrCreate()
-        
+    )
+
     schema = recsysSchema.toStructType()
 
     proc = DataProcessor(spark, path_prefix,
                         current_path=current_path, dicts_path=dicts_folder, shuffle_disk_capacity="1500GB",spark_mode='standalone')
-    
+
     return spark, schema,proc
 
 def train():
@@ -1047,7 +1056,7 @@ def train():
 
     sample_ratio = 0.03
     train_sample_ratio = 0.083/sample_ratio
-    train_sample_ratio = 1 if train_sample_ratio > 1 else train_sample_ratio
+    train_sample_ratio = min(train_sample_ratio, 1)
 
     ############ load data
     df = spark.read.parquet(path_prefix + original_folder)
@@ -1058,8 +1067,10 @@ def train():
     print("data loaded!")
 
     if sample_ratio != 1:
-        df.sample(sample_ratio).write.format("parquet").mode("overwrite").save(path_prefix+"%s/train1_sample" % current_path)
-        df = spark.read.parquet(path_prefix+"%s/train1_sample" % current_path)
+        df.sample(sample_ratio).write.format("parquet").mode("overwrite").save(
+            f"{path_prefix}{current_path}/train1_sample"
+        )
+        df = spark.read.parquet(f"{path_prefix}{current_path}/train1_sample")
         print("data sampled!")
 
     ############# decode data
@@ -1096,7 +1107,7 @@ def valid_stage1():
     original_folder = "/home/vmagent/app/recdp/examples/notebooks/twitter_recsys/oridata/valid/"
     original_index = '/home/vmagent/app/recdp/examples/notebooks/twitter_recsys/oridata/valid/valid_split_index.parquet'
     dicts_folder = "recsys_dicts/"
-    
+
     spark, schema,proc = setup_local(path_prefix,current_path,dicts_folder)
 
     ############# load data
@@ -1117,8 +1128,15 @@ def valid_stage1():
 
     ############# merge target encoding dict from train
     dict_names = ['tweet', 'mention']
-    dict_dfs = [{'col_name': name, 'dict': spark.read.parquet(
-        "%s/%s/%s/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, name))} for name in dict_names]
+    dict_dfs = [
+        {
+            'col_name': name,
+            'dict': spark.read.parquet(
+                f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/{name}"
+            ),
+        }
+        for name in dict_names
+    ]
     _, te_test_dfs, y_mean_all_df = getTargetEncodingFeaturesDicts(proc,mode='stage1')
 
     val_df = valid_mergeFeatures(df, te_test_dfs, y_mean_all_df, proc, output_name="stage1_valid",mode="stage1", dict_dfs=dict_dfs)
@@ -1134,7 +1152,9 @@ def valid_stage2():
     spark, schema,proc = setup_local(path_prefix,current_path,dicts_folder)
 
     ############# load data
-    df = spark.read.parquet(path_prefix+"/recsys2021/datapre_stage1/stage1_valid_all")
+    df = spark.read.parquet(
+        f"{path_prefix}/recsys2021/datapre_stage1/stage1_valid_all"
+    )
     print("data loaded!")
 
     ############# count encoding
@@ -1190,25 +1210,32 @@ def inference_join():
     dicts_folder = "recsys_dicts/"
 
     spark, schema, proc = setup_local(path_prefix,current_path,dicts_folder)
-    
+
     #############  load decoder data
     df = spark.read.parquet(path_prefix+current_path+"test1_decode")
     print("data decoded!")
 
     ############# load dict from stage 1
     dict_names = ['tweet', 'mention']
-    dict_dfs = [{'col_name': name, 'dict': spark.read.parquet(
-        "%s/%s/%s/%s" % (proc.path_prefix, proc.current_path, proc.dicts_path, name))} for name in dict_names]
+    dict_dfs = [
+        {
+            'col_name': name,
+            'dict': spark.read.parquet(
+                f"{proc.path_prefix}/{proc.current_path}/{proc.dicts_path}/{name}"
+            ),
+        }
+        for name in dict_names
+    ]
     _, te_test_dfs, y_mean_all_df = getTargetEncodingFeaturesDicts(proc, mode='stage1', train_dict_load=False)
-    
+
     ############# set up to stage 2
     current_path = "/recsys2021/datapre_stage2/"
     proc = DataProcessor(spark, path_prefix,
                         current_path=current_path, dicts_path=dicts_folder, shuffle_disk_capacity="1500GB",spark_mode='local')
-    
+
     ############# count encoding
     ce_test_dfs = CountEncodingFeatures(df, proc, gen_dict=True,mode="inference",train_generate=False)
-    
+
     ############# load dict from stage 2
     _, te_test_dfs_stage2, y_mean_all_df_stage2 = getTargetEncodingFeaturesDicts(proc, mode = 'stage2', train_dict_load=False)
 

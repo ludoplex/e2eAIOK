@@ -58,27 +58,22 @@ def random_replacements(n=10):
     letters = string.ascii_lowercase
     lettters_digits = string.ascii_lowercase + string.digits
     emails = [
-        "".join(random.choice(letters) for i in range(5)) + "@example.com"
-        for i in range(n)
+        "".join(random.choice(letters) for _ in range(5)) + "@example.com"
+        for _ in range(n)
     ]
     keys = [
-        "".join(random.choice(lettters_digits) for i in range(32)) for i in range(n)
+        "".join(random.choice(lettters_digits) for _ in range(32))
+        for _ in range(n)
     ]
     ip_addresses = REPLACEMENTS_IP
 
     phones = [
-        "".join(random.choice(string.digits) for i in range(10))
-        for i in range(n)
+        "".join(random.choice(string.digits) for _ in range(10))
+        for _ in range(n)
     ]
 
-    names = []
-    for i in range(n):
-        names.append(FAKER.name())
-
-    passwords = []
-    for i in range(n):
-        passwords.append(FAKER.password())
-
+    names = [FAKER.name() for _ in range(n)]
+    passwords = [FAKER.password() for _ in range(n)]
     return {"EMAIL": emails, "KEY": keys, "IP_ADDRESS": ip_addresses, "PHONE_NUMBER": phones,
             "NAME": names, "PASSWORD": passwords}
 
@@ -113,43 +108,38 @@ def redact_pii_text(text, secrets, replacements):
     Returns:
         text (str): new text with redacted secrets
     """
-    if secrets:
-        secrets = sorted(secrets, key=lambda x: x["start"])
-        # store the secrets that were replaced here with their replacements
-        replaced_secrets = {}
-        subparts = []
-        step = 0
-        last_text = text
-        for secret in secrets:
-            # skip secret if it's an IP address for private networks or popular DNS servers
-            if secret["tag"] == "IP_ADDRESS":
-                # if secret value in popular DNS servers, skip it
-                if is_private_ip(secret["value"]) or (secret["value"] in POPULAR_DNS_SERVERS):
-                    continue
-
-            subtext = text[step: secret["start"]]
-            subpart = subtext if subtext else " "
-            subparts.append(subpart)
-            # if secret is already in replaced_secrets, use the same replacement
-            if secret["value"] in replaced_secrets:
-                replacement = replaced_secrets[secret["value"]]
-            else:
-                if secret["tag"] == "IP_ADDRESS":
-                    replacement = replace_ip(secret["value"], replacements)
-                else:
-                    replacement = random.choice(replacements[secret["tag"]])
-
-            subparts.append(replacement)
-            replaced_secrets[secret["value"]] = replacement
-
-            last_text = text[secret["end"]:]
-            step = secret["end"]
-        # if subparts are not empty join them (it can be empty when all secrets were skipped)
-        if len(subparts) == 0:
-            return text, False
-        else:
-            new_text = "".join(subparts) + last_text if subparts else last_text
-            return new_text, True
-
-    else:
+    if not secrets:
         return text, False
+    secrets = sorted(secrets, key=lambda x: x["start"])
+    # store the secrets that were replaced here with their replacements
+    replaced_secrets = {}
+    subparts = []
+    step = 0
+    last_text = text
+    for secret in secrets:
+        # skip secret if it's an IP address for private networks or popular DNS servers
+        if secret["tag"] == "IP_ADDRESS":
+            # if secret value in popular DNS servers, skip it
+            if is_private_ip(secret["value"]) or (secret["value"] in POPULAR_DNS_SERVERS):
+                continue
+
+        subtext = text[step: secret["start"]]
+        subpart = subtext if subtext else " "
+        subparts.append(subpart)
+            # if secret is already in replaced_secrets, use the same replacement
+        if secret["value"] in replaced_secrets:
+            replacement = replaced_secrets[secret["value"]]
+        elif secret["tag"] == "IP_ADDRESS":
+            replacement = replace_ip(secret["value"], replacements)
+        else:
+            replacement = random.choice(replacements[secret["tag"]])
+
+        subparts.append(replacement)
+        replaced_secrets[secret["value"]] = replacement
+
+        last_text = text[secret["end"]:]
+        step = secret["end"]
+    if not subparts:
+        return text, False
+    new_text = "".join(subparts) + last_text if subparts else last_text
+    return new_text, True

@@ -106,35 +106,30 @@ class Test_LLMUtils_Operations(unittest.TestCase):
             ctx.show(op.process_rayds(ctx.ds))
 
     def test_filter_by_url_ray(self):
-        pass
         # Ray version not supported yet
         op = URLFilter()
         with RayContext("tests/data/llm_data/tiny_c4_sample.jsonl") as ctx:
             ctx.show(op.process_rayds(ctx.ds))
 
     def test_filter_by_alphanumeric_ray(self):
-        pass
         # Ray version not supported yet
         op = AlphanumericFilter()
         with RayContext("tests/data/llm_data/tiny_c4_sample.jsonl") as ctx:
             ctx.show(op.process_rayds(ctx.ds))
 
     def test_filter_by_average_line_length_ray(self):
-        pass
         # Ray version not supported yet
         op = AverageLineLengthFilter()
         with RayContext("tests/data/llm_data/tiny_c4_sample.jsonl") as ctx:
             ctx.show(op.process_rayds(ctx.ds))
 
     def test_filter_by_maximum_line_length_ray(self):
-        pass
         # Ray version not supported yet
         op = MaximumLineLengthFilter()
         with RayContext("tests/data/llm_data/tiny_c4_sample.jsonl") as ctx:
             ctx.show(op.process_rayds(ctx.ds))
 
     def test_filter_by_special_characters_ray(self):
-        pass
         # Ray version not supported yet
         op = SpecialCharactersFilter()
         with RayContext("tests/data/llm_data/tiny_c4_sample.jsonl") as ctx:
